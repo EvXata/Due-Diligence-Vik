@@ -1,0 +1,120 @@
+# MBB Team — Applied Prompt Changes Log
+*Изменения, внесённые непосредственно в файлы агентов по результатам cross-engagement анализа*
+
+---
+
+## 2026-03-28 — Applied: Innovate Archetype Blocking Gate
+
+**Agent:** bcg-segment-analyst.md
+**Change:** Добавлен блок "ОБЯЗАТЕЛЬНЫЙ КОНТРОЛЬ КАЧЕСТВА СТРАТЕГИЙ" с тремя blocking gates перед шагом сохранения файла:
+
+1. **Archetype Completeness Gate** — обязательная таблица по всем 5 архетипам (D/P/S/F/I) с количеством стратегий; минимальные счётчики по MBB-позиции (Star/QM: 10-15 стратегий; Cash Cow: 8-12; Dog: 6-10); при несоответствии — добавить стратегии перед сохранением
+
+2. **Innovate Archetype Gate** — точное определение (создаёт новую категорию/бизнес-модель, которой ранее не существовало); позитивные примеры (Arm architecture licensing, Spotify podcast exclusivity, MCP protocol ownership, Stripe Connect marketplace revenue share); негативные примеры (снижение цены — НЕ Innovate; улучшение features — НЕ Innovate; M&A в существующей категории — НЕ Innovate); обязательный INNOVATE GAP statement если 2 квалифицирующих стратегии найти невозможно (объяснение причин, а не просто пропуск)
+
+3. **Financial Parameters Validation Gate** — проверка источников (❌-маркированные данные не могут появляться в финансовых параметрах как конкретные значения); revenue ceiling check (если implied market share >30% — пересчитать); fleet math check (для стратегий с unit economics: Revenue Check = units × revenue/unit × periods; расхождение >30% требует объяснения)
+
+**Rationale:** 15/15 engagements с отсутствующим Innovate архетипом несмотря на 14 предложений изменить промпт; Baidu engagement подтвердил возможность полного coverage когда мотивация высока; blocking gate с Gap Statement как safety valve устраняет проблему без принудительного генерирования слабых стратегий
+**Expected improvement:** Innovate присутствует в >80% сегментов начиная со следующего engagement'а; ❌-данные в финансовых параметрах сокращаются до нуля
+
+---
+
+## 2026-03-28 — Applied: Section Header Standard with Blocking Self-Check
+
+**Agent:** bcg-production.md
+**Change:** Заменена одиночная инструкция заголовков на детальный стандарт "СТАНДАРТ ЗАГОЛОВКОВ РАЗДЕЛОВ — СТРОГО ОБЯЗАТЕЛЕН":
+
+- **Тест для каждого заголовка:** "Этот заголовок отвечает на вопрос 'Что это значит для решения?' или только объявляет тему раздела? Если только объявляет — перепиши."
+- **Запрещённые (topic-style) заголовки** с конкретными примерами: "Анализ сегментов", "Конкурентный ландшафт", "Гипотезы", "GTM Playbook", "Анализ рисков", "Стратегические варианты", "Портфельный синтез", "Синергии", "Распределение ресурсов"
+- **Требуемые (conclusion-style) заголовки** с калиброванными примерами: "Два сегмента несут всю компанию — без инвестиций в оба она теряет лидерство за 18 месяцев", "Все 10 гипотез подтверждают: ставка на Enterprise Platform должна быть сделана в 2026 году"
+- **Обязательный шаблон для сегментных заголовков:** "[Сегмент]: [единственный самый важный стратегический вывод для компании в этом сегменте]" с примерами
+- **Примеры конвертации sub-header:** "Ключевое преимущество" → "Closed-loop атрибуция структурно недостижима ни для одного конкурента"
+- **Блокирующая самопроверка:** прочитай только заголовки (без текста разделов) — если читатель понимает общую рекомендацию, главный вывод по каждому сегменту и ключевой риск — стандарт соблюдён; если чтение заголовков малоинформативно — перепиши перед сохранением
+
+**Rationale:** 13/15 engagements с topic-style заголовками несмотря на 12 предложений изменить промпт; сильные примеры в Amazon ("The AI Infrastructure Window Is Open Now, Not Forever") и Intel ("Kodak trap") доказывают, что агент способен писать conclusion-style headers — проблема в непоследовательном применении под давлением длины; blocking self-check устраняет проблему
+**Expected improvement:** Соответствие conclusion-style headers во всех секциях финального отчёта начиная со следующего engagement'а
+
+---
+
+## 2026-03-28 — Applied: TAM Source Hierarchy + WAU/MAU Discipline + Corporate Event Protocol
+
+**Agent:** bcg-market-mapper.md
+**Change:** Добавлены три обязательных дисциплинарных секции:
+
+1. **TAM Scope Gate:** TAM должен соответствовать определению сегмента, а не более широкой рыночной категории; если TAM более чем в 3 раза превышает суммарную раскрытую выручку топ-5 игроков — скорее всего, используется более широкое определение; обязательное явное указание определения TAM
+
+2. **Иерархия источников Tier 1/2/3:** Tier 1 (Goldman Sachs, Morgan Stanley, IDC, Gartner, Canalys, SEMI) — предпочтительный; Tier 2 (Forrester, Counterpoint, Grand View Research, Mordor Intelligence) — приемлемый при кросс-проверке; Tier 3 (MarkSpark, Verified Market Research, Business Research Insights и аналогичные агрегаторы) — только как контекст bull case; если Tier 3 оценка более чем в 3x превышает Tier 1 — маркировать как "агрессивный bull case", Tier 1 использовать как primary
+
+3. **Дисциплина WAU/MAU:** при цитировании метрик пользователей всегда явно указывать тип метрики с источником и датой; не усреднять и не смешивать WAU с MAU; разрыв может достигать 2-4x
+
+4. **Корпоративный event протокол:** для любых корпоративных событий, произошедших менее 6 месяцев назад или неверифицированных из двух независимых первичных источников — помечать [НЕ ВЕРИФИЦИРОВАНО — требуется поиск]; M&A завершение — только после проверки SEC filings или пресс-релизов компании
+
+5. **Актуальность выручки конкурентов:** для каждого конкурента в конкурентных таблицах искать фактические квартальные результаты Q4/FY2025 до использования аналитических прогнозов
+
+**Rationale:** WAU/MAU conflation в 4/15 engagements (всегда в market-mapper); unverified M&A claims в 7/15 engagements; TAM scope inflation в 11/15 engagements; competitor revenue currency failures в 6/15 engagements; все четыре класса ошибок originate в этом агенте
+**Expected improvement:** WAU/MAU conflation устраняется; unverified M&A claims устраняются; TAM source quality улучшается; competitor revenue currency failures снижаются на 70%+
+
+---
+
+## 2026-04-09 — Applied: Question Mark Strategy Minimum + Structural Template
+
+**Agent:** bcg-segment-analyst.md
+**Source:** Alphabet engagement methodology review — Issue #2 (4-engagement pattern confirmed)
+**Change:** Добавлен явный минимум для Question Mark сегментов (8 стратегий) с обязательным структурным шаблоном:
+
+- Шаблон: 2×D, 2×S, 1×P, 1×F, 1×I, 1×exit strategy (IPO/JV/дивестиция)
+- Явное предупреждение: "Question Mark с 2–4 стратегиями — это НЕ полный анализ"
+- Объяснение пространства стратегических опций для Question Mark: платформенная лицензия, B2B white-label, govt concession, IPO/spin-out, стратегические партнёрства с OEM
+- Шаблон обязателен для предотвращения low-effort coverage в нарождающихся сегментах
+
+**Rationale:** В Alphabet engagement SPD и Waymo (оба Question Mark) произвели 4 и 2 стратегии соответственно vs. минимума 8; в Samsung engagement 5/6 сегментов ниже минимума; Question Mark исторически не имел явного минимума в промпте несмотря на формально заявленный диапазон 10–15; структурный шаблон даёт конкретные scaffolding для нарождающихся сегментов где агент дефолтно производит low-effort coverage
+**Expected improvement:** Question Mark стратегии достигают минимума 8 начиная со следующего engagement'а
+
+---
+
+## 2026-04-09 — Applied: Innovate Substance Gate (Self-Check Before Labeling)
+
+**Agent:** bcg-segment-analyst.md
+**Source:** Alphabet engagement methodology review — Issue #1 (4-engagement confirmed pattern: Apple, Samsung, Amkor, Alphabet — все с отсутствующим или слабым Innovate)
+**Change:** Усилен существующий Innovate Gate добавлением явной самопроверки перед присвоением ярлыка I:
+
+- Чёткое определение: "бизнес-модель, продуктовая категория или источник выручки, который в настоящее время не существует для данной компании в данном сегменте"
+- Два явных проверочных вопроса: "Существует ли эта бизнес-модель уже у компании?" / "Существует ли она у любого конкурента?"
+- Если ответ "да" на любой — перекласифицировать и производить Gap Statement
+- Добавлен блок "Допустимые паттерны Innovate": новая модель ценообразования, новый класс покупателей, новая позиция в value chain, новая регуляторная категория
+
+**Rationale:** Существующий blocking gate оказался недостаточным — агент проходил архетипную проверку генерируя фейковые I стратегии (Defend/Scale под ярлыком I); substance gate с явными проверочными вопросами создаёт механизм self-correction прямо в точке присвоения ярлыка
+**Expected improvement:** Доля genuine Innovate стратегий (или честных Gap Statement'ов) повышается; исчезают стратегии Scale/Defend переименованные в Innovate
+
+---
+
+## 2026-04-09 — Applied: Cross-Company Benchmark Temporal Parity Gate
+
+**Agent:** bcg-data-scientist.md
+**Source:** Alphabet engagement methodology review — Issue #3 (first confirmed occurrence; same root mechanism as Apple temporal scope gate)
+**Change:** Добавлен явный блокирующий gate "TEMPORAL PARITY GATE" перед таблицей бенчмарков (Analysis 4):
+
+1. Проверка через company-brief.md — какой финансовый год использован для таргет-компании
+2. Для каждого peer — искать `[competitor] FY2025 annual results` до использования FY2024
+3. Если FY2025 peer недоступен — указывать фактический год в метке колонки
+4. Обязательный footnote при сравнении разных fiscal years: "⚠️ [Competitor]: FY2024 data — FY2025 not yet reported"
+5. Обязательная колонка "Fiscal Year" в таблице бенчмарков
+
+**Rationale:** В Alphabet engagement ROIC (41.1%), margin (35.6%), revenue growth (+15%) сравнивались с Microsoft/Meta/Apple FY2024 данными несмотря на наличие FY2025 данных в company-brief.md; систематически завышает относительное улучшение таргет-компании; тот же root mechanism что Apple engagement (quarterly vs. annual), теперь применён к cross-company оси
+**Expected improvement:** Все peer-метрики используют тот же fiscal year что таргет-компания или явно помечены; temporal mismatch исчезает из benchmarking таблиц
+
+---
+
+## 2026-04-09 — Applied: Part V Incremental Content Enforcement (Strengthened)
+
+**Agent:** bcg-production.md
+**Source:** Alphabet engagement methodology review — Issue #4 (5-й consecutive engagement с этим паттерном, declining severity)
+**Change:** Добавлена блокирующая самопроверка "САМОПРОВЕРКА ЧАСТИ V" перед содержимым Part V:
+
+- Явный проверочный вопрос для каждого абзаца: "Описывает ЧТО представляет собой стратегия (её содержание) OR объясняет ПОЧЕМУ выбрана / ЧТО является критичным допущением / ЧТО первым в исполнении?"
+- Инструкция: если абзац описывает содержание — удалить или перенести в Часть II
+- Явный список того, что Part V содержит ИСКЛЮЧИТЕЛЬНО: (a) логика выбора с trade-offs, (b) критичное допущение + сигнал провала, (c) корреляция рисков портфеля, (d) последовательность исполнения 30/90/180 дней с владельцами и KPI
+- Триггер-фраза: "Если абзац начинается 'Эта стратегия предполагает...' / 'Суть подхода...' — это дублирование Части II. Удали."
+
+**Rationale:** Samsung Change 3 (первая версия правила) снизила severity с 800→600→400 слов дублирования, но не устранила паттерн; strengthened self-check с конкретным триггером-фразой и инструкцией "удали или перенеси" (а не просто "не дублируй") закрывает оставшийся gap
+**Expected improvement:** Part V дублирование Part II снижается до нуля; Part V содержит исключительно selection logic, assumptions, risk correlation, execution sequence

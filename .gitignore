@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Research outputs (engagement data, not source code)
+research/
+
+# Claude local settings (personal, not shared)
+.claude/settings.local.json
+.claude/.DS_Store
+
+# Claude plugin (runtime, not source)
+.claude-plugin/
+
+# Pipeline reference (legacy)
+pipeline.json
+
+# PDFs and binary files
+*.pdf
+.env
