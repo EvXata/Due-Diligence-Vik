@@ -24,7 +24,7 @@ All agents are defined in `.claude/agents/`, all skills in `.claude/skills/`.
 /dd <company> --deal-type PE --asking-price $2bn --language ru
 /dd <company> --dir research/<existing-bcg-dir>   # use existing BCG output
 ```
-Delivers: Investment Verdict (PROCEED / CONDITIONAL / PASS) + Value Bridge + Risk Matrix + dd-report.md
+Delivers: **three-layer decision output** (10-sec → 5-min → 45-min) + Value Bridge + Risk Matrix + institutional reference.
 
 **Run BCG analysis first, then add DD:**
 ```
@@ -35,16 +35,32 @@ Delivers: Investment Verdict (PROCEED / CONDITIONAL / PASS) + Value Bridge + Ris
 **DD pipeline phases:**
 - Phase DD-1 (parallel): `dd-market-validator` + `dd-hypothesis-tester`
 - Phase DD-2 (parallel): `dd-risk-analyst` + `dd-red-team`
-- Phase DD-3: `dd-production` → `dd-report.md`
+- Phase DD-3a (parallel): `dd-production-decision-first` + `dd-production` (legal layer)
+- Phase DD-3b: `dd-production-summary` → derives `dd-mid.md` + `dd-short.md` from master
 
-**DD output files:**
+**DD output files (three-layer architecture — `dd-output-standard.md` Rule 1):**
 ```
-dd-report.md          ← PRIMARY DELIVERABLE (Investment Verdict + Value Bridge)
+dd-short.md            ← 10-second decision page (binary signal, ~50 lines)
+dd-mid.md              ← 5-minute pre-meeting briefing (Top-5 issues with So what?)
+dd-decision-first.md   ← Full investment report (45-60 min, IC-grade)  ← PRIMARY
+dd-report.md           ← Institutional / legal reference (legacy format)
+
+Supporting analysis:
 dd-market-validation.md  ← TAM/CAGR/moat validation (adversarial)
 dd-hypothesis-report.md  ← 10 hypothesis test results (✅/⚠️/❌)
-dd-risk-matrix.md     ← Full risk matrix (15+ risks, P×I scoring)
-dd-red-team.md        ← Bear case + stress scenarios + pre-mortem
+dd-risk-matrix.md        ← Full risk matrix (15+ risks, P×I scoring)
+dd-red-team.md           ← Bear case + stress scenarios + pre-mortem
 ```
+
+The three decision layers (`dd-short`, `dd-mid`, `dd-decision-first`) follow the 15-rule
+**Decision-First Output Standard** (`.claude/skills/dd/references/dd-output-standard.md`):
+verdict-first, "So what?" on every risk, dollar amounts before percentages, narrative
+failure scenarios (not bullets), narrative pre-mortem, decision anchors after every
+Critical/High risk, automatic PASS if 3+ hypotheses refuted.
+
+The master (`dd-decision-first.md`) is the single source of truth — `dd-mid.md` and
+`dd-short.md` derive from it; no figures appear in summary layers that don't trace back
+to the master.
 
 ---
 
@@ -150,12 +166,18 @@ BCG Foundation (Phases -1 → 3):
   Phase 2    bcg-portfolio-analyst    → portfolio.md
 
 DD Phases:
-  Phase DD-1  dd-market-validator     → dd-market-validation.md  } parallel
-              dd-hypothesis-tester    → dd-hypothesis-report.md  }
-  Phase DD-2  dd-risk-analyst         → dd-risk-matrix.md        } parallel
-              dd-red-team             → dd-red-team.md           }
-  Phase DD-3  dd-production           → dd-report.md  ← PRIMARY OUTPUT
+  Phase DD-1   dd-market-validator         → dd-market-validation.md  } parallel
+               dd-hypothesis-tester        → dd-hypothesis-report.md  }
+  Phase DD-2   dd-risk-analyst             → dd-risk-matrix.md        } parallel
+               dd-red-team                 → dd-red-team.md           }
+  Phase DD-3a  dd-production-decision-first → dd-decision-first.md    } parallel
+               dd-production               → dd-report.md  (legal)    }
+  Phase DD-3b  dd-production-summary       → dd-mid.md + dd-short.md
+                                            (derived from dd-decision-first.md)
 ```
+
+**dd-decision-first.md is the PRIMARY OUTPUT** — IC-grade, 45-60 min read.
+`dd-mid.md` (5-min briefing) and `dd-short.md` (10-sec decision) derive from it.
 
 **Shortcut:** If BCG analysis already exists, use `--dir` to skip BCG phases and jump directly to DD.
 
@@ -219,13 +241,17 @@ bcg-audience-scout  → contact-universe.md
 
 ### Key Files
 
-**DD Agents (new):**
+**DD Agents:**
 - `.claude/agents/dd-market-validator.md` — adversarial market claims validation (TAM, CAGR, VRIO)
 - `.claude/agents/dd-hypothesis-tester.md` — tests 10 DD hypotheses (✅/⚠️/❌)
 - `.claude/agents/dd-risk-analyst.md` — risk matrix (15+ risks, P×I, deal breakers)
 - `.claude/agents/dd-red-team.md` — bear case, short thesis, stress scenarios, pre-mortem
-- `.claude/agents/dd-production.md` — final DD report (Verdict + Value Bridge)
+- `.claude/agents/dd-production-decision-first.md` — master decision-first report (applies all 15 rules) → `dd-decision-first.md`
+- `.claude/agents/dd-production-summary.md` — derives `dd-mid.md` + `dd-short.md` from master, strict no-new-numbers rule
+- `.claude/agents/dd-production.md` — institutional/legal layer (legacy format) → `dd-report.md`
 - `.claude/skills/dd/SKILL.md` — DD orchestrator (full pipeline)
+- `.claude/skills/dd/references/dd-output-standard.md` — 15-rule decision-first standard (MANDATORY read for production agents)
+- `.claude/skills/dd/references/templates/` — structural reference templates for the three decision layers
 
 **BCG Agents:**
 - `.claude/agents/` — all sub-agent definitions (one `.md` per agent)

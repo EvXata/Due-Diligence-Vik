@@ -429,10 +429,46 @@ Update `dd-engagement.log` — append DD-2 results.
 
 ---
 
-### Phase DD-3 — Final DD Report
+### Phase DD-3a — Master Report + Legal Layer (Parallel)
 
-One Agent call — dd-production:
+This phase produces two outputs in parallel: the **decision-first master report** (the primary deliverable) and the **legacy institutional report** (legal/compliance reference).
 
+In a **single message**, 2 Agent calls simultaneously:
+
+**Agent call 1 — dd-production-decision-first:**
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/dd-decision-first.md
+Deal type: [deal-type]
+Asking price: [asking-price]
+Language: [language]
+
+REQUIRED first reads:
+1. .claude/skills/dd/references/dd-output-standard.md (15 rules)
+2. .claude/skills/dd/references/templates/dd-decision-first.md (structural reference)
+
+Then read ALL files from OUTPUT_DIR:
+BCG: company-brief.md, market-map.md, portfolio.md, validation-report.md, all segment-*.md
+DD: dd-market-validation.md, dd-hypothesis-report.md, dd-risk-matrix.md, dd-red-team.md
+
+Assemble the master Decision-First DD Report applying ALL 15 rules from the standard:
+- Verdict block with threshold ladder (PASS @ $X / CONDITIONAL @ $Y / PROCEED @ $Z)
+- One-line bottom line + 10-second decision + entry warning + personal pain hook
+- Self-identification table (Rule 8)
+- 3+ narrative failure scenarios (Rule 10 — NOT bullet lists)
+- Hypothesis scorecard with 3+ refuted = automatic PASS rule (Rule 14)
+- Risk matrix (20 risks) with "So what?" blocks (Rule 4) + decision anchors (Rule 5)
+- Value bridge with probability-weighted expected return (Rule 13)
+- Exit triggers pre-commitment table
+- Pre-mortem as future-dated first-person narrative (Rule 11)
+- Strong end CTA in code block (Rule 9)
+
+Lead with verdict. Dollar amounts before percentages (Rule 6). Position, not observation (Rule 15).
+Save to [OUTPUT_DIR]/dd-decision-first.md using Write tool.
+```
+
+**Agent call 2 — dd-production (legal layer, unchanged):**
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -445,7 +481,7 @@ Read ALL files from OUTPUT_DIR:
 BCG: company-brief.md, market-map.md, portfolio.md, validation-report.md, all segment-*.md
 DD: dd-market-validation.md, dd-hypothesis-report.md, dd-risk-matrix.md, dd-red-team.md
 
-Assemble final Strategic Due Diligence Report:
+Assemble institutional DD Report (legal/compliance layer):
 - Investment Verdict: PROCEED / CONDITIONAL / PASS
 - Value Bridge: asking price vs. DD-adjusted fair value
 - Deal Breakers section
@@ -459,22 +495,80 @@ Lead with verdict. Conclusion-first throughout. Be specific, not hedged.
 Save to [OUTPUT_DIR]/dd-report.md using Write tool.
 ```
 
-Progress: `📄 Phase DD-3 — Final DD Report (dd-production) → dd-report.md ⏳`
+Progress:
+```
+📄 Phase DD-3a — Master + Legal Reports (parallel)
+   ├── dd-production-decision-first → dd-decision-first.md  (PRIMARY)
+   └── dd-production                → dd-report.md          (legal layer)
+   ⏳ Running in parallel...
+```
+
+After both complete, read `dd-decision-first.md` to verify the verdict and key figures (you will pass these forward to DD-3b implicitly via the master file).
+
+Output:
+```
+✅ Phase DD-3a complete.
+📄 Master report: dd-decision-first.md
+📄 Legal layer: dd-report.md
+🚀 Launching Phase DD-3b: Summary layers...
+```
+
+---
+
+### Phase DD-3b — Summary Layers (Sequential, depends on DD-3a)
+
+This phase derives the two short-format layers from the master. It MUST run after DD-3a completes successfully — `dd-production-summary` reads `dd-decision-first.md` as its only data source.
+
+One Agent call — dd-production-summary:
+
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Output files:
+  - [OUTPUT_DIR]/dd-mid.md
+  - [OUTPUT_DIR]/dd-short.md
+Language: [language]
+
+REQUIRED first reads:
+1. .claude/skills/dd/references/dd-output-standard.md (Rules 2, 4, 7, 13, 15)
+2. .claude/skills/dd/references/templates/dd-mid.md (structural reference)
+3. .claude/skills/dd/references/templates/dd-short.md (structural reference)
+4. [OUTPUT_DIR]/dd-decision-first.md (master — the ONLY source of facts/numbers)
+
+Derive two layers:
+- dd-mid.md (~150 lines, 5-min pre-meeting briefing): Top-5 issues with So what? blocks,
+  hypothesis scorecard, value bridge, "this deal only works if" conditions.
+- dd-short.md (~50 lines, 10-second decision page): Verdict, Deal Score, fair value gap,
+  3 deal-breaks triggers, biggest risk as one sentence, recommended actions with specifics.
+
+STRICT RULE: Do NOT invent new numbers, risks, or hypotheses. Everything must trace back to
+the master. If something is missing from the master, flag with [MISSING — flag to dd-production-decision-first]
+rather than fabricating.
+
+Cross-file consistency check before saving — verdict, confidence, deal score, fair value range,
+expected loss, and all 3 deal-breaks triggers must match the master exactly.
+
+Save both files using Write tool.
+```
+
+Progress: `📄 Phase DD-3b — Summary Layers (dd-production-summary) → dd-mid.md + dd-short.md ⏳`
 
 ---
 
 ## Step Final — Completion
 
-After dd-production completes, finalize `dd-engagement.log` — append:
+After Phase DD-3b completes, finalize `dd-engagement.log` — append:
 ```markdown
 ## Engagement Complete
 Status: ✅ COMPLETED
 Completed: [YYYY-MM-DD HH:MM]
 Verdict: [PROCEED / CONDITIONAL / PASS]
+Confidence: [X]% ([interpretation])
+Deal Score: [X.X] / 10
 Fair Value Range: $[Xm] — $[Xm]
 Deal Breakers: [N]
-Hypothesis Score: [N]/10
-Files generated: [N]
+Hypothesis Score: [N confirmed / N uncertain / N refuted]
+Files generated: 4 (dd-short.md, dd-mid.md, dd-decision-first.md, dd-report.md)
 ```
 
 Output to user:
@@ -483,32 +577,42 @@ Output to user:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 VERDICT: [PROCEED / CONDITIONAL / PASS]
+Confidence: [X]% ([interpretation])  ·  Deal Score: [X.X]/10
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 💰 Asking Price: [asking-price]
 📊 DD-Adjusted Fair Value: $[Xm] — $[Xm] ([X]% of asking)
 🔴 Deal Breakers: [N] — [list or "None"]
-📋 Hypotheses: [N]/10 confirmed | [N] uncertain | [N] refuted
-🚨 Critical Risks: [N]
+📋 Hypotheses: [N] confirmed | [N] uncertain | [N] refuted
+[If 3+ refuted:] ⚠️  Rule 14 triggered — automatic PASS
+🚨 Critical Risks: [N]  ·  High: [N]  ·  Medium: [N]  ·  Low: [N]
 
 📁 Files saved to: research/[company]-[date]/
-   ├── dd-report.md          ← PRIMARY DELIVERABLE (start here)
+
+   READ IN THIS ORDER (each layer is independently useful):
+
+   1. dd-short.md             ← 10-second decision  ⏱ start here
+   2. dd-mid.md               ← 5-minute pre-meeting briefing
+   3. dd-decision-first.md    ← Full investment report (45–60 min)  ← PRIMARY
+   4. dd-report.md            ← Institutional / legal reference
+
+   Supporting analysis:
    ├── dd-market-validation.md ← Market claims validation
    ├── dd-hypothesis-report.md ← 10 hypothesis test results
-   ├── dd-risk-matrix.md     ← Full risk matrix (15+ risks)
-   ├── dd-red-team.md        ← Bear case + stress scenarios
-   ├── portfolio.md          ← BCG strategic foundation
-   └── company-brief.md      ← Verified raw data
+   ├── dd-risk-matrix.md       ← Full risk matrix (20 risks)
+   ├── dd-red-team.md          ← Bear case + stress scenarios
+   ├── portfolio.md            ← BCG strategic foundation
+   └── company-brief.md        ← Verified raw data
 
 [If CONDITIONAL:]
 ⚠️  CONDITIONS BEFORE CLOSE:
-[List specific conditions from dd-report.md]
+[List specific conditions from dd-decision-first.md]
 
 [If PASS:]
 ❌ PASS — Key reasons:
-[List top 3 deal-breaking issues]
+[List top 3 deal-breaking issues from dd-decision-first.md Section 5]
 
-🎨 Generate PDF? Say "PDF" to create a client-ready DD report.
+🎨 Generate PDF? Say "PDF" to create client-ready DD documents.
 ```
 
 ---
