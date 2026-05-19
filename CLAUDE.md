@@ -129,6 +129,9 @@ Pulls contacts/accounts/opportunities from any CRM via Merge.dev into `crm-data/
 # e.g.: /notion-export tsmc-30.03.2026
 ```
 
+For `/dd` engagements this happens automatically as Phase DD-4 — `/notion-export`
+is only needed for BCG-only runs, or to manually retry a failed DD export.
+
 **Process client feedback from Notion:**
 ```
 /notion-process <research_dir_name>
@@ -145,6 +148,11 @@ Scans every research directory for pending feedback and processes them sequentia
 **Export script (direct):**
 ```bash
 NOTION_TOKEN=<token> NOTION_PARENT_PAGE_ID=<page_id> \
+  python3 .claude/skills/notion-export/export_to_notion.py research/<dir>
+
+# Restrict export to a subset of files (used by /dd Phase DD-4):
+NOTION_TOKEN=<token> NOTION_PARENT_PAGE_ID=<page_id> \
+NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md" \
   python3 .claude/skills/notion-export/export_to_notion.py research/<dir>
 ```
 
