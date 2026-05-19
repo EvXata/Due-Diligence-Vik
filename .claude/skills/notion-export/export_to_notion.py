@@ -440,6 +440,19 @@ def main():
     files = [f for f in files if f.is_file() and f.suffix in (".md", ".log", ".txt")]
     print(f"Found {len(files)} files in {research_dir}")
 
+    # Optional whitelist (env NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,...")
+    whitelist_raw = os.environ.get("NOTION_FILES_WHITELIST", "").strip()
+    if whitelist_raw:
+        allowed = {name.strip() for name in whitelist_raw.split(",") if name.strip()}
+        missing = allowed - {f.name for f in files}
+        files = [f for f in files if f.name in allowed]
+        if missing:
+            print(f"Warning: whitelist entries not found in directory: {sorted(missing)}")
+        print(f"Whitelist applied: {len(files)} files match ({sorted(f.name for f in files)})")
+        if not files:
+            print("Error: whitelist matched zero files — nothing to export")
+            sys.exit(2)
+
     # Determine parent page for file pages.
     # If NOTION_PARENT_PAGE_ID is set — use it directly (engagement page already created).
     # Otherwise create an engagement page under NOTION_MBB_ROOT_PAGE_ID.

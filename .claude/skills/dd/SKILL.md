@@ -555,6 +555,117 @@ Progress: `📄 Phase DD-3b — Summary Layers (dd-production-summary) → dd-mi
 
 ---
 
+### Phase DD-4 — Notion Export (MANDATORY)
+
+This phase is **mandatory**. The four decision deliverables MUST be exported to Notion immediately after generation so the client can read them in the place they expect. Supporting analyses (risk matrix, red team, etc.) are NOT exported in this phase — only the four decision layers.
+
+**Files to export (whitelist):**
+1. `dd-short.md` — 10-second decision
+2. `dd-mid.md` — 5-min pre-meeting briefing
+3. `dd-decision-first.md` — Full investment report (PRIMARY)
+4. `dd-report.md` — Institutional / legal reference
+
+**Step DD-4.1 — Verify Notion configuration:**
+
+```bash
+set -a; source /Users/maximpuda/Projects/Due-Diligence-Vik/.env 2>/dev/null; set +a
+
+if [ -z "$NOTION_TOKEN" ]; then
+  echo "STATUS:MISSING_TOKEN"
+elif [ -z "$NOTION_MBB_ROOT_PAGE_ID" ]; then
+  echo "STATUS:MISSING_ROOT"
+else
+  echo "STATUS:OK"
+  echo "ROOT_ID:$NOTION_MBB_ROOT_PAGE_ID"
+fi
+```
+
+**If STATUS is `MISSING_TOKEN` or `MISSING_ROOT`:** Output to user:
+```
+⚠️  Notion export skipped — credentials missing.
+
+Add to .env:
+  NOTION_TOKEN=secret_xxx
+  NOTION_MBB_ROOT_PAGE_ID=<page_id>
+
+After configuring, run manually:
+  /notion-export [DIR_NAME]
+```
+Then SKIP DD-4.2 and DD-4.3, but continue to Step Final. Do NOT block the pipeline.
+
+**If STATUS is `OK`:** proceed.
+
+**Step DD-4.2 — Create per-engagement parent page via Notion MCP:**
+
+Build the engagement title from the directory name:
+- `nvidia-19.05.2026` → `"NVIDIA — Strategic DD (19.05.2026)"`
+- `acme-corp-01.06.2026` → `"Acme Corp — Strategic DD (01.06.2026)"`
+
+Parse: split on FIRST date-looking token (`DD.MM.YYYY`), uppercase short names (≤4 chars), capitalize longer names.
+
+Use the Notion MCP tool `notion-create-pages` to create the engagement page:
+- `parent`: `{"type": "page_id", "page_id": "<NOTION_MBB_ROOT_PAGE_ID from Step DD-4.1>"}`
+- `title`: the formatted engagement title above
+- `icon`: 🔍 (magnifying glass — distinguishes DD from MBB engagements)
+
+Capture the returned page ID as `ENGAGEMENT_PAGE_ID`.
+
+**If MCP tool fails or unavailable:** Fall back to creating the page via the export script's auto-creation logic (omit `NOTION_PARENT_PAGE_ID` in Step DD-4.3). Log a warning but continue.
+
+**Step DD-4.3 — Run export with whitelist:**
+
+```bash
+set -a; source /Users/maximpuda/Projects/Due-Diligence-Vik/.env; set +a
+
+TARGET_DIR="[OUTPUT_DIR from Step 0]"
+ENGAGEMENT_PAGE_ID="[ENGAGEMENT_PAGE_ID from Step DD-4.2]"
+
+echo "Exporting 4 decision layers to Notion..."
+echo "Target dir: $TARGET_DIR"
+echo "Parent page: $ENGAGEMENT_PAGE_ID"
+echo "---"
+
+NOTION_PARENT_PAGE_ID="$ENGAGEMENT_PAGE_ID" \
+NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md" \
+  python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "$TARGET_DIR"
+```
+
+Stream output to user. The script will:
+- Filter to exactly the 4 whitelisted files
+- Create one Notion child page per file under `ENGAGEMENT_PAGE_ID`
+- Create the `📋 Feedback` page automatically
+- Save `notion-mapping.json` and `notion-feedback.json` into the engagement directory
+
+Progress:
+```
+☁️  Phase DD-4 — Notion Export (4 decision layers)
+   ├── dd-short.md           → Notion page
+   ├── dd-mid.md             → Notion page
+   ├── dd-decision-first.md  → Notion page
+   └── dd-report.md          → Notion page
+   ⏳ Uploading...
+```
+
+**Step DD-4.4 — Capture Notion URL:**
+
+After the script finishes, extract the URL from its last line (`Parent page: https://notion.so/...`) and store it as `NOTION_URL`. This URL will be shown in Step Final.
+
+**If export fails (401, 403, network error):**
+- Save the error message to `[OUTPUT_DIR]/notion-export-error.log`
+- Set `NOTION_URL=""` (empty)
+- Continue to Step Final — DO NOT abort the engagement. The user already has all 12 files locally; they can retry export manually with `/notion-export`.
+
+Append to `dd-engagement.log`:
+```markdown
+## Phase DD-4 — Notion Export
+Status: [SUCCESS / FAILED / SKIPPED]
+Engagement page: [NOTION_URL or "n/a"]
+Files exported: 4 (dd-short.md, dd-mid.md, dd-decision-first.md, dd-report.md)
+[If FAILED:] Error: [first line of error]
+```
+
+---
+
 ## Step Final — Completion
 
 After Phase DD-3b completes, finalize `dd-engagement.log` — append:
@@ -603,6 +714,18 @@ Confidence: [X]% ([interpretation])  ·  Deal Score: [X.X]/10
    ├── dd-red-team.md          ← Bear case + stress scenarios
    ├── portfolio.md            ← BCG strategic foundation
    └── company-brief.md        ← Verified raw data
+
+[If NOTION_URL is non-empty:]
+☁️  Notion: [NOTION_URL]
+   ├── dd-short            ← uploaded
+   ├── dd-mid              ← uploaded
+   ├── dd-decision-first   ← uploaded
+   ├── dd-report           ← uploaded
+   └── 📋 Feedback         ← for client comments
+
+[If NOTION_URL is empty (export failed):]
+⚠️  Notion export failed — see notion-export-error.log
+    Retry manually: /notion-export [DIR_NAME]
 
 [If CONDITIONAL:]
 ⚠️  CONDITIONS BEFORE CLOSE:

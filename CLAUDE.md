@@ -37,6 +37,7 @@ Delivers: **three-layer decision output** (10-sec → 5-min → 45-min) + Value 
 - Phase DD-2 (parallel): `dd-risk-analyst` + `dd-red-team`
 - Phase DD-3a (parallel): `dd-production-decision-first` + `dd-production` (legal layer)
 - Phase DD-3b: `dd-production-summary` → derives `dd-mid.md` + `dd-short.md` from master
+- Phase DD-4 (MANDATORY): Notion export of the 4 decision layers via `export_to_notion.py` whitelist
 
 **DD output files (three-layer architecture — `dd-output-standard.md` Rule 1):**
 ```
@@ -174,10 +175,21 @@ DD Phases:
                dd-production               → dd-report.md  (legal)    }
   Phase DD-3b  dd-production-summary       → dd-mid.md + dd-short.md
                                             (derived from dd-decision-first.md)
+  Phase DD-4   notion-export (whitelist)   → 4 Notion pages + 📋 Feedback page
+                                            (MANDATORY — exports only the 4 decision layers,
+                                             not supporting analyses)
 ```
 
 **dd-decision-first.md is the PRIMARY OUTPUT** — IC-grade, 45-60 min read.
 `dd-mid.md` (5-min briefing) and `dd-short.md` (10-sec decision) derive from it.
+
+**Notion export is mandatory but non-blocking:** if `NOTION_TOKEN` /
+`NOTION_MBB_ROOT_PAGE_ID` are missing in `.env`, Phase DD-4 is skipped with a
+clear message; the engagement still completes with all 12 files saved locally.
+The export script (`export_to_notion.py`) accepts a `NOTION_FILES_WHITELIST`
+env var (CSV of filenames) — DD pipeline passes
+`dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md` to limit export to
+just the four decision layers.
 
 **Shortcut:** If BCG analysis already exists, use `--dir` to skip BCG phases and jump directly to DD.
 
