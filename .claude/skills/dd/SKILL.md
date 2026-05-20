@@ -738,6 +738,16 @@ Confidence: [X]% ([interpretation])  ·  Deal Score: [X.X]/10
 🎨 Generate PDF? Say "PDF" to create client-ready DD documents.
 ```
 
+**If user says "PDF"** — run the `pdf-report` skill on all four DD decision layers:
+```bash
+for f in dd-short.md dd-mid.md dd-decision-first.md dd-report.md; do
+  python3 .claude/skills/pdf-report/render_report.py [OUTPUT_DIR]/$f \
+    --mode dd --company "[company]"
+done
+```
+Produces four PDFs in Xata&co Bridgewater style with cover, TOC, verdict badge
+(PROCEED / CONDITIONAL / PASS), severity chips, and "So what?" callouts.
+
 ---
 
 ## Standards

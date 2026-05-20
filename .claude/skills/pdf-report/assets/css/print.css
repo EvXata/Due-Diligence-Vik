@@ -1,0 +1,444 @@
+/* ──────────────────────────────────────────────────────────────────────
+   Print / Paged Media — Bridgewater-style document layout
+   A4 portrait, two-column body, running header, footnotes, page numbers
+   ────────────────────────────────────────────────────────────────────── */
+
+@page {
+  size: A4;
+  margin: 22mm 18mm 24mm 18mm;
+
+  @top-left {
+    content: string(running-header);
+    font-family: 'Geist', sans-serif;
+    font-size: 8pt;
+    color: #6b6b67;
+    letter-spacing: 0.02em;
+    padding-bottom: 6mm;
+    border-bottom: 0.5px solid rgba(0,0,0,0.16);
+  }
+  @top-right {
+    content: string(running-title);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8pt;
+    color: #6b6b67;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding-bottom: 6mm;
+    border-bottom: 0.5px solid rgba(0,0,0,0.16);
+  }
+  @bottom-center {
+    content: counter(page) " / " counter(pages);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8.5pt;
+    color: #6b6b67;
+    padding-top: 6mm;
+    border-top: 0.5px solid rgba(0,0,0,0.16);
+  }
+  @bottom-right {
+    content: "Xata&co · Confidential";
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    color: #9a9a96;
+    padding-top: 6mm;
+  }
+}
+
+@page :first {
+  margin: 0;
+  @top-left   { content: ""; }
+  @top-right  { content: ""; }
+  @bottom-center { content: ""; }
+  @bottom-right  { content: ""; }
+}
+
+@page cover {
+  margin: 0;
+  @top-left   { content: ""; }
+  @top-right  { content: ""; }
+  @bottom-center { content: ""; }
+  @bottom-right  { content: ""; }
+}
+
+@page toc {
+  @top-right { content: "Contents"; }
+}
+
+/* ────────────────────────────────────────────────────────────
+   Running header strings — set from H1/H2 content
+   ──────────────────────────────────────────────────────────── */
+
+h1 { string-set: running-title content(); }
+.doc-running-header { string-set: running-header attr(data-text); }
+
+/* ────────────────────────────────────────────────────────────
+   Cover page — Bridgewater-style: huge title, thin meta lines,
+   left accent bar, generous whitespace
+   ──────────────────────────────────────────────────────────── */
+
+.cover {
+  page: cover;
+  break-after: page;
+  page-break-after: always;
+  width: 210mm;
+  height: 297mm;
+  padding: 32mm 22mm 28mm 22mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  background: var(--bg-primary);
+  border-left: 8mm solid var(--accent);
+}
+
+.cover-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.cover-logo {
+  font-family: var(--ff-sans);
+  font-weight: 700;
+  font-size: 14pt;
+  letter-spacing: -0.02em;
+}
+.cover-logo .accent { color: var(--accent); }
+
+.cover-meta-tag {
+  font-family: var(--ff-mono);
+  font-size: 8.5pt;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border: 0.5px solid var(--border-medium);
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cover-meta-tag::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.cover-center { flex: 1; display: flex; flex-direction: column; justify-content: center; max-width: 165mm; }
+
+.cover-eyebrow {
+  font-family: var(--ff-mono);
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  margin-bottom: 18mm;
+  border-top: 1px solid var(--accent);
+  padding-top: 6mm;
+  display: inline-block;
+}
+
+.cover-title {
+  font-family: var(--ff-sans);
+  font-size: 52pt;
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  color: var(--text-primary);
+  margin: 0;
+  border: 0;
+  padding: 0;
+  break-before: auto !important;
+  page-break-before: auto !important;
+}
+.cover-title .accent { color: var(--accent); }
+
+.cover-subtitle {
+  font-family: var(--ff-sans);
+  font-size: 14pt;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  margin-top: 10mm;
+  max-width: 140mm;
+}
+
+.cover-verdict {
+  margin-top: 18mm;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  align-self: flex-start;
+}
+.cover-verdict-label {
+  font-family: var(--ff-mono);
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+.cover-verdict-value {
+  font-family: var(--ff-sans);
+  font-size: 18pt;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+.cover-verdict.conditional { background: rgba(194,138,30,0.06); border-color: var(--color-warn); }
+.cover-verdict.conditional .cover-verdict-value { color: var(--color-warn); }
+.cover-verdict.pass { background: rgba(181,51,26,0.06); border-color: var(--color-negative); }
+.cover-verdict.pass .cover-verdict-value { color: var(--color-negative); }
+
+.cover-bottom {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8mm;
+  padding-top: 8mm;
+  border-top: 0.5px solid var(--border-medium);
+  font-family: var(--ff-mono);
+  font-size: 8.5pt;
+}
+.cover-meta-block .label {
+  display: block;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 7.5pt;
+  margin-bottom: 3px;
+}
+.cover-meta-block .value {
+  color: var(--text-primary);
+  font-size: 10pt;
+  font-weight: 500;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Table of Contents (auto-generated)
+   ──────────────────────────────────────────────────────────── */
+
+.toc {
+  page: toc;
+  break-after: page;
+  page-break-after: always;
+  padding-top: 4mm;
+}
+.toc-title {
+  font-family: var(--ff-sans);
+  font-size: 24pt;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 8mm;
+  padding-bottom: 4mm;
+  border-bottom: 1px solid var(--text-primary);
+}
+.toc ol { list-style: none; margin: 0; padding: 0; }
+.toc li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 0.5px dotted var(--border-subtle);
+  font-size: 10.5pt;
+}
+.toc li.lvl-2 { padding-left: 14px; font-size: 9.5pt; color: var(--text-secondary); }
+.toc-num {
+  font-family: var(--ff-mono);
+  font-size: 9pt;
+  color: var(--text-secondary);
+  margin-right: 12px;
+  min-width: 28px;
+}
+.toc-title-text { flex: 1; }
+.toc-page {
+  font-family: var(--ff-mono);
+  font-size: 9pt;
+  color: var(--text-muted);
+}
+
+/* ────────────────────────────────────────────────────────────
+   Body — two-column for ordinary prose, full-width for tables/charts
+   ──────────────────────────────────────────────────────────── */
+
+.body {
+  /* Bridgewater uses 2-col body in some places, full-width in others.
+     We default to 1-col for safer rendering of tables. */
+}
+
+.section {
+  break-before: page;
+  page-break-before: always;
+}
+.section:first-of-type { break-before: auto; page-break-before: auto; }
+
+/* Optional: 2-col flow inside a section marked .columns */
+.section.columns .section-body {
+  column-count: 2;
+  column-gap: 8mm;
+  column-rule: 0.5px solid var(--border-subtle);
+}
+.section.columns .section-body > h2,
+.section.columns .section-body > h3,
+.section.columns .section-body > table,
+.section.columns .section-body > .figure,
+.section.columns .section-body > .callout {
+  column-span: all;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Callouts — Key Takeaways, Verdict Anchor, Critical Risk
+   ──────────────────────────────────────────────────────────── */
+
+.callout {
+  margin: 1em 0;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--accent);
+  background: var(--bg-secondary);
+  break-inside: avoid;
+  page-break-inside: avoid;
+  font-size: 10pt;
+  line-height: 1.55;
+}
+.callout-label {
+  display: block;
+  font-family: var(--ff-mono);
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+.callout p:last-child { margin-bottom: 0; }
+
+.callout.key-takeaways  { border-left-color: var(--accent); }
+.callout.key-takeaways .callout-label { color: var(--accent); }
+
+.callout.so-what {
+  background: var(--accent-bg);
+  border-left-color: var(--accent);
+}
+.callout.so-what .callout-label { color: var(--accent); }
+.callout.so-what::before {
+  content: "→";
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.callout.risk-critical {
+  background: rgba(181,51,26,0.05);
+  border-left-color: var(--color-negative);
+}
+.callout.risk-critical .callout-label { color: var(--color-negative); }
+
+.callout.risk-high {
+  background: rgba(194,138,30,0.05);
+  border-left-color: var(--color-warn);
+}
+.callout.risk-high .callout-label { color: var(--color-warn); }
+
+/* ────────────────────────────────────────────────────────────
+   Figures (charts, matrices) + source attribution
+   ──────────────────────────────────────────────────────────── */
+
+.figure {
+  margin: 1.2em 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  text-align: center;
+}
+.figure svg, .figure img { max-width: 100%; height: auto; }
+.figure-caption {
+  font-family: var(--ff-mono);
+  font-size: 8.5pt;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  text-align: left;
+  border-top: 0.5px solid var(--border-subtle);
+  padding-top: 5px;
+  letter-spacing: 0.02em;
+}
+.figure-caption .label {
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+  margin-right: 6px;
+}
+.figure-source {
+  font-family: var(--ff-mono);
+  font-size: 7.5pt;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Footnotes
+   ──────────────────────────────────────────────────────────── */
+
+.footnote {
+  font-size: 8.5pt;
+  color: var(--text-secondary);
+  margin-top: 0.6em;
+  padding-left: 1.4em;
+  text-indent: -1.4em;
+  font-family: var(--ff-sans);
+}
+.footnote-marker {
+  font-family: var(--ff-mono);
+  font-size: 7.5pt;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Page break utilities
+   ──────────────────────────────────────────────────────────── */
+
+.page-break       { break-after: page;  page-break-after: always; }
+.avoid-break      { break-inside: avoid; page-break-inside: avoid; }
+
+img, svg, table, .callout, .figure, blockquote, pre {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Highlight Stats — large numbers (Bridgewater "by the numbers" panel)
+   ──────────────────────────────────────────────────────────── */
+
+.stats-panel {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4mm;
+  margin: 1em 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--text-primary);
+  border-bottom: 1px solid var(--text-primary);
+  break-inside: avoid;
+}
+.stat .stat-value {
+  font-family: var(--ff-sans);
+  font-size: 22pt;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  line-height: 1;
+  display: block;
+}
+.stat .stat-label {
+  font-family: var(--ff-mono);
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: block;
+}
+.stat .stat-trend.up   { color: var(--accent); }
+.stat .stat-trend.down { color: var(--color-negative); }

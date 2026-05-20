@@ -1,0 +1,289 @@
+/* ──────────────────────────────────────────────────────────────────────
+   Xata&co — Brand Palette + Typography
+   Источник: strategy-suite/marketing/landing/index.html
+   ────────────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Backgrounds */
+  --bg-primary:   #ffffff;
+  --bg-secondary: #f6f6f4;
+  --bg-tertiary:  #efefec;
+
+  /* Text */
+  --text-primary:   #0f0f0d;
+  --text-secondary: #6b6b67;
+  --text-muted:     #9a9a96;
+
+  /* Accent */
+  --accent:        #16A06B;
+  --accent-light:  #5DCAA5;
+  --accent-soft:   rgba(22, 160, 107, 0.08);
+  --accent-bg:     rgba(22, 160, 107, 0.04);
+
+  /* Semantic */
+  --color-positive: #16A06B;
+  --color-warn:     #C28A1E;
+  --color-negative: #B5331A;
+  --color-info:     #2F6FBF;
+
+  /* Borders */
+  --border-subtle: rgba(0, 0, 0, 0.09);
+  --border-medium: rgba(0, 0, 0, 0.16);
+  --border-strong: rgba(0, 0, 0, 0.24);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+
+  /* Typography */
+  --ff-sans: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ff-mono: 'IBM Plex Mono', 'Geist Mono', 'SF Mono', Menlo, monospace;
+  --ff-serif: 'Tiempos Text', 'Source Serif Pro', Georgia, serif;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Base typography — neutral, document-style (Bridgewater-grade)
+   ──────────────────────────────────────────────────────────── */
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: var(--ff-sans);
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1, "ss01" 1;
+}
+
+p {
+  margin: 0 0 0.7em 0;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  orphans: 3;
+  widows: 3;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Headings — restrained, Bridgewater-ish
+   ──────────────────────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--ff-sans);
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-align: left;
+}
+
+h1 {
+  font-size: 24pt;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.6em 0;
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--text-primary);
+  break-before: page;
+  page-break-before: always;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+h1:first-of-type { break-before: auto; page-break-before: auto; }
+
+h2 {
+  font-size: 15pt;
+  font-weight: 600;
+  margin: 1.4em 0 0.5em 0;
+  color: var(--accent);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+h2.top-h2 {
+  font-size: 24pt;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  margin: 0 0 0.6em 0;
+  padding-bottom: 0.35em;
+  border-bottom: 1px solid var(--text-primary);
+  break-before: page;
+  page-break-before: always;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+h2.top-h2:first-of-type { break-before: auto; page-break-before: auto; }
+
+h3 {
+  font-size: 12pt;
+  font-weight: 600;
+  margin: 1.1em 0 0.35em 0;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-size: 10.5pt;
+  font-weight: 600;
+  margin: 0.9em 0 0.25em 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-family: var(--ff-mono);
+}
+
+h5, h6 {
+  font-size: 10pt;
+  font-weight: 600;
+  margin: 0.8em 0 0.2em 0;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Inline elements
+   ──────────────────────────────────────────────────────────── */
+
+strong, b { font-weight: 600; color: var(--text-primary); }
+em, i     { font-style: italic; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent-light);
+}
+
+code {
+  font-family: var(--ff-mono);
+  font-size: 0.88em;
+  background: var(--bg-secondary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 0.5px solid var(--border-subtle);
+}
+
+pre {
+  font-family: var(--ff-mono);
+  font-size: 9pt;
+  background: var(--bg-secondary);
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-subtle);
+  overflow-x: auto;
+  margin: 0.8em 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+pre code { background: transparent; border: 0; padding: 0; }
+
+hr {
+  border: 0;
+  border-top: 0.5px solid var(--border-medium);
+  margin: 1.5em 0;
+}
+
+/* ────────────────────────────────────────────────────────────
+   Lists
+   ──────────────────────────────────────────────────────────── */
+
+ul, ol {
+  margin: 0.4em 0 0.8em 1.4em;
+  padding: 0;
+}
+li {
+  margin: 0.15em 0;
+  line-height: 1.5;
+}
+ul li::marker { color: var(--accent); }
+ol li::marker { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+/* ────────────────────────────────────────────────────────────
+   Blockquote — used as Key Takeaways / callout
+   ──────────────────────────────────────────────────────────── */
+
+blockquote {
+  margin: 1em 0;
+  padding: 14px 18px;
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 10pt;
+  color: var(--text-primary);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+blockquote p { margin: 0 0 0.4em 0; text-align: left; }
+blockquote p:last-child { margin-bottom: 0; }
+
+/* ────────────────────────────────────────────────────────────
+   Tables — Bloomberg-terminal-meets-Bridgewater
+   ──────────────────────────────────────────────────────────── */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.9em 0;
+  font-size: 9.5pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+thead { background: var(--bg-secondary); }
+thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-family: var(--ff-mono);
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--text-primary);
+  border-top: 1px solid var(--text-primary);
+}
+
+tbody td {
+  padding: 7px 10px;
+  border-bottom: 0.5px solid var(--border-subtle);
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+}
+tbody tr:last-child td { border-bottom: 1px solid var(--text-primary); }
+tbody tr:nth-child(even) { background: rgba(0,0,0,0.012); }
+
+/* ────────────────────────────────────────────────────────────
+   Badges / chips — verdicts, severity, status
+   ──────────────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-family: var(--ff-mono);
+  font-size: 8.5pt;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 0.5px solid var(--border-medium);
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+.badge-proceed     { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.badge-conditional { background: rgba(194,138,30,0.10); color: var(--color-warn); border-color: var(--color-warn); }
+.badge-pass        { background: rgba(181,51,26,0.10); color: var(--color-negative); border-color: var(--color-negative); }
+
+.badge-critical { background: rgba(181,51,26,0.10); color: var(--color-negative); border-color: var(--color-negative); }
+.badge-high     { background: rgba(194,138,30,0.10); color: var(--color-warn);     border-color: var(--color-warn); }
+.badge-medium   { background: rgba(47,111,191,0.10); color: var(--color-info);     border-color: var(--color-info); }
+.badge-low      { background: var(--accent-soft);    color: var(--accent);         border-color: var(--accent); }
+
+.badge-star { background: rgba(22,160,107,0.10);  color: var(--accent);         border-color: var(--accent); }
+.badge-cow  { background: rgba(47,111,191,0.10);  color: var(--color-info);     border-color: var(--color-info); }
+.badge-q    { background: rgba(194,138,30,0.10);  color: var(--color-warn);     border-color: var(--color-warn); }
+.badge-dog  { background: rgba(181,51,26,0.10);   color: var(--color-negative); border-color: var(--color-negative); }

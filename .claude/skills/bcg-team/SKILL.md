@@ -753,12 +753,16 @@ VERDICT: [PROCEED / CONDITIONAL / PASS]
 🎨 Say "PDF" to generate client-ready PDF.
 ```
 
-Если пользователь подтверждает — запусти bcg-pdf-designer:
+Если пользователь подтверждает — запусти скилл `pdf-report` (Xata&co Bridgewater-style PDF):
+```bash
+python3 .claude/skills/pdf-report/render_report.py [OUTPUT_DIR]/final-report.md \
+  --mode bcg --company "[name]"
+# и если есть GTM:
+python3 .claude/skills/pdf-report/render_report.py [OUTPUT_DIR]/gtm-playbook.md \
+  --mode bcg --company "[name]"
 ```
-Company: [name]
-Output directory: [OUTPUT_DIR]
-Language: [user's language]
-```
+Это создаст `final-report.pdf` и `gtm-playbook.pdf` в `[OUTPUT_DIR]` с обложкой
+Xata&co, MBB Growth-Share Matrix SVG и портретным форматом A4.
 
 ---
 

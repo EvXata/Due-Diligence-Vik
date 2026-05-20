@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="{{ lang|default('en') }}">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ css_xata }}" />
+  <link rel="stylesheet" href="{{ css_print }}" />
+  <style>
+    @page {
+      @top-right { content: "{{ running_title|default('') }}"; }
+    }
+  </style>
+</head>
+<body>
+
+{# ── Cover ─────────────────────────────────────────────── #}
+<section class="cover">
+  <div class="cover-top">
+    <div class="cover-logo">Xata<span class="accent">&amp;</span>co</div>
+    {% if meta_tag %}<div class="cover-meta-tag">{{ meta_tag }}</div>{% endif %}
+  </div>
+
+  <div class="cover-center">
+    {% if eyebrow %}<div class="cover-eyebrow">{{ eyebrow }}</div>{% endif %}
+    <h1 class="cover-title">{{ cover_title|safe }}</h1>
+    {% if subtitle %}<p class="cover-subtitle">{{ subtitle }}</p>{% endif %}
+
+    {% if verdict %}
+    <div class="cover-verdict {{ verdict.klass }}">
+      <span class="cover-verdict-label">{{ verdict.label }}</span>
+      <span class="cover-verdict-value">{{ verdict.value }}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="cover-bottom">
+    {% for block in cover_meta %}
+    <div class="cover-meta-block">
+      <span class="label">{{ block.label }}</span>
+      <span class="value">{{ block.value }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+{# ── Table of Contents ─────────────────────────────────── #}
+{% if toc %}
+<section class="toc">
+  <h1 class="toc-title">Contents</h1>
+  <ol>
+    {% for item in toc %}
+    <li class="lvl-{{ item.level }}">
+      <span class="toc-num">{{ item.num }}</span>
+      <span class="toc-title-text">{{ item.title }}</span>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endif %}
+
+{# ── Body ──────────────────────────────────────────────── #}
+<main class="body">
+{% for section in sections %}
+<section class="section{% if section.columns %} columns{% endif %}">
+  <div class="section-body">
+    {{ section.html|safe }}
+  </div>
+</section>
+{% endfor %}
+</main>
+
+</body>
+</html>
