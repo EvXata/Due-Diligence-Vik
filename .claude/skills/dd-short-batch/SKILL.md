@@ -258,6 +258,29 @@ done
 
 Companies with failed synthesis keep their drafts for debugging.
 
+### Phase F-3.5 — PDF generation per wave (MANDATORY)
+
+For every company in the wave with a non-empty `dd-short.md`, render a
+Xata&co Bridgewater-style PDF. Every shipped `dd-short.md` must have a
+sibling `dd-short.pdf` so it is forward-shareable as a single attachment.
+
+```bash
+for SLUG in [list of succeeded slugs in this wave]; do
+  if [ -s "$BATCH_DIR/$SLUG/dd-short.md" ]; then
+    python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/pdf-report/render_report.py \
+      "$BATCH_DIR/$SLUG/dd-short.md" \
+      --mode dd \
+      --company "$(echo "$SLUG" | sed -E 's/[-_]/ /g; s/\b./\u&/g')" \
+      || echo "❌ PDF failed for $SLUG (kept md only)" >> "$BATCH_DIR/batch-engagement.log"
+  fi
+done
+```
+
+**Failure handling:** PDF failure for one company does NOT abort the wave or
+the batch — the markdown remains valid. Failures are logged to
+`batch-engagement.log` and surfaced in the final batch summary as
+`📄 md only (PDF failed)` instead of `📄 md + PDF`.
+
 ### Phase F-4 — Capture wave results
 
 Read each succeeded `dd-short.md` and extract:
@@ -312,11 +335,14 @@ Sort table by Verdict severity: PASS first (most actionable), then CONDITIONAL, 
 
 ## Individual Reports
 
-- [Apple — CONDITIONAL @ 72%](apple/dd-short.md)
-- [Microsoft — PROCEED @ 78%](microsoft/dd-short.md)
-- [NVIDIA — PASS @ 81%](nvidia/dd-short.md)
+Each succeeded company ships with both `dd-short.md` (source) and `dd-short.pdf`
+(Xata&co Bridgewater PDF — forward-shareable single attachment).
+
+- Apple — CONDITIONAL @ 72%  ·  [md](apple/dd-short.md) / [PDF](apple/dd-short.pdf)
+- Microsoft — PROCEED @ 78%  ·  [md](microsoft/dd-short.md) / [PDF](microsoft/dd-short.pdf)
+- NVIDIA — PASS @ 81%  ·  [md](nvidia/dd-short.md) / [PDF](nvidia/dd-short.pdf)
 - ~~AMD~~ — failed in Phase F-1 (see batch-engagement.log)
-- [Open AI — CONDITIONAL @ 65%](open-ai/dd-short.md)
+- Open AI — CONDITIONAL @ 65%  ·  [md](open-ai/dd-short.md) / [PDF](open-ai/dd-short.pdf)
 ...
 
 ---

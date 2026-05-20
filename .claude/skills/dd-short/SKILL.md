@@ -190,7 +190,8 @@ Output to user:
   ├── dd-short-fast       → dd-short-base.md         [base case + 3 hypotheses] (~12 min)
   ├── dd-red-team-fast    → dd-red-team-fast.md      [bear thesis + scenarios] (~10 min)
   │   [SKIPPED if --no-redteam]
-  └── dd-short-synthesizer → dd-short.md             [reconciled final] (~3 min)
+  ├── dd-short-synthesizer → dd-short.md             [reconciled final] (~3 min)
+  └── pdf-report           → dd-short.pdf            [Xata&co Bridgewater PDF] (~3 sec)
 
 **Not a substitute for full /dd** — for IC-grade depth, run /dd [company] (60-90 min).
 
@@ -350,6 +351,32 @@ Append to `dd-short-engagement.log`:
 Drafts removed: [yes / no — kept because dd-short.md is missing or empty]
 ```
 
+### B.5.5 — Phase F-3.5: PDF generation (MANDATORY)
+
+**Always** convert the final `dd-short.md` into a Xata&co Bridgewater-style PDF
+via the `pdf-report` skill. This is non-optional — every `dd-short.md` must
+ship with a sibling `dd-short.pdf` so the report is forward-shareable as
+a single attachment.
+
+```bash
+if [ -s "[OUTPUT_DIR]/dd-short.md" ]; then
+  python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/pdf-report/render_report.py \
+    "[OUTPUT_DIR]/dd-short.md" \
+    --mode dd \
+    --company "[company-display-name]"
+fi
+```
+
+**Failure handling:** if PDF generation fails (Chrome not found, render error),
+log it to `dd-short-engagement.log` but do **not** abort the engagement — the
+markdown is the source of truth, the PDF is a delivery format.
+
+Append to `dd-short-engagement.log`:
+```markdown
+## Phase F-3.5 — PDF
+File: dd-short.pdf  ·  Size: [X] KB  ·  Status: [✅ generated / ❌ failed: <reason>]
+```
+
 ### B.6 — Optional Notion export
 
 If `NOTION_TOKEN` and `NOTION_MBB_ROOT_PAGE_ID` are set in `.env`, offer the user a Notion upload:
@@ -404,7 +431,9 @@ Confidence: [X]% ([interpretation])  ·  Deal Score: [X.X]/10
 📋 Killer hypotheses: [N]✅ / [N]⚠️ / [N]❌
 [If 3 refuted:] ⚠️  Rule 14 triggered — automatic PASS
 
-📁 File: [OUTPUT_DIR]/dd-short.md
+📁 Files:
+   • [OUTPUT_DIR]/dd-short.md   ← source
+   • [OUTPUT_DIR]/dd-short.pdf  ← Xata&co Bridgewater PDF (forward-shareable)
 
 [If Notion uploaded:]
 ☁️  Notion: [NOTION_URL]
