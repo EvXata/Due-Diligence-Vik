@@ -59,13 +59,13 @@
 {% endif %}
 
 {# ── Body ──────────────────────────────────────────────── #}
+{# No <section> wrappers — keeps natural flow so the first H1/H2 doesn't
+   force a page break, and a sparse tail of section N doesn't strand an
+   almost-empty page before section N+1. Page breaks come from H1/H2.top-h2
+   CSS rules, which respect :first-of-type within <main>. #}
 <main class="body">
 {% for section in sections %}
-<section class="section{% if section.columns %} columns{% endif %}">
-  <div class="section-body">
-    {{ section.html|safe }}
-  </div>
-</section>
+{{ section.html|safe }}
 {% endfor %}
 </main>
 
