@@ -26,6 +26,19 @@ All agents are defined in `.claude/agents/`, all skills in `.claude/skills/`.
 ```
 Delivers: **three-layer decision output** (10-sec → 5-min → 45-min) + Value Bridge + Risk Matrix + institutional reference.
 
+**Fast-mode DD short (~15 min, dd-short.md only):**
+```
+/dd-short <company>
+/dd-short <company> --asking-price $500m --deal-type PE
+/dd-short --from research/<existing-dd-dir>   # derive from existing master (3 min)
+/dd-short <company> --no-redteam              # skip red team (12 min, no Bear Case section)
+```
+Lightweight standalone path that produces ONLY `dd-short.md`. Intelligent router:
+- If `--from` points to a directory with `dd-decision-first.md` → derives via `dd-production-summary` (~3 min, full quality)
+- Otherwise → runs parallel `dd-short-fast` (3 killer hypotheses + base case) + `dd-red-team-fast` (bear thesis + stress scenario + pre-mortem), then `dd-short-synthesizer` merges with reconciliation rules (~15 min)
+
+Output retains Bear Case quote section (citation-ready bear thesis + stress scenario + compressed pre-mortem) so the file remains forward-worthy for sharing. Always carries a fast-mode disclosure flag and CTA to full `/dd` — never poses as IC-grade.
+
 **Run BCG analysis first, then add DD:**
 ```
 /bcg-team <company>
@@ -203,6 +216,40 @@ just the four decision layers.
 
 ---
 
+### DD Short Fast-Mode Pipeline (`/dd-short`)
+
+Lightweight standalone path that produces ONLY `dd-short.md` in ~15 min. Router picks one of two paths:
+
+**Path A — Derivation Mode (~3 min)** — used when `--from` points to an existing engagement with `dd-decision-first.md`:
+```
+Phase A-1   dd-production-summary    → dd-short.md + dd-mid.md
+                                       (derived from existing master, no new analysis)
+```
+
+**Path B — Standalone Fast-Mode (~15 min)** — used when no full DD exists:
+```
+Phase F-1   dd-short-fast            → dd-short-base.md      } parallel    } intermediate
+            dd-red-team-fast         → dd-red-team-fast.md   }              } drafts (auto-deleted)
+Phase F-2   dd-short-synthesizer     → dd-short.md          (merges + reconciliation R1-R5)
+Phase F-3   cleanup                  → removes intermediate drafts iff dd-short.md is non-empty
+                                       (drafts preserved on synthesis failure for debugging)
+```
+
+User-visible output is a single file: `dd-short.md`. Intermediate drafts (`dd-short-base.md`, `dd-red-team-fast.md`) exist only during the run and are removed after successful synthesis — they survive only if the synthesizer failed (so the user can inspect or re-run).
+
+**Reconciliation rules (R1-R5)** in `dd-short-synthesizer`:
+- R1: 3+ refuted hypotheses → automatic PASS (Rule 14)
+- R2: Red Team gap >40% below asking → downgrade verdict by one tier
+- R3: Base case PROCEED + Red Team PASS → confidence -15pp + downgrade tier
+- R4: No material adversarial findings → keep base case
+- R5: Worst case = max(base worst case, red team scenario downside)
+
+**Output disclosure:** `dd-short.md` in fast-mode carries a header flag (`⚡ FAST-MODE`) and a closing CTA pointing to full `/dd`. Bear Case section (≤3-sentence bear thesis + 1-2 scenario summary + compressed pre-mortem) is included unless `--no-redteam` is passed — this is what makes the output forward-worthy for sharing.
+
+**Output directory:** `research/<company>-<date>-fast/` (the `-fast` suffix distinguishes fast-mode engagements from full DD).
+
+---
+
 ### BCG-Only Engagement Pipeline
 
 Each `/bcg-team` run creates `research/<company>-<date>/` and executes agents sequentially, with parallelism inside phases:
@@ -269,8 +316,16 @@ bcg-audience-scout  → contact-universe.md
 - `.claude/agents/dd-production-decision-first.md` — master decision-first report (applies all 15 rules) → `dd-decision-first.md`
 - `.claude/agents/dd-production-summary.md` — derives `dd-mid.md` + `dd-short.md` from master, strict no-new-numbers rule
 - `.claude/agents/dd-production.md` — institutional/legal layer (legacy format) → `dd-report.md`
-- `.claude/skills/dd/SKILL.md` — DD orchestrator (full pipeline)
-- `.claude/skills/dd/references/dd-output-standard.md` — 15-rule decision-first standard (MANDATORY read for production agents)
+
+**DD Fast-Mode Agents (`/dd-short` standalone path):**
+- `.claude/agents/dd-short-fast.md` — light research + 3 killer hypotheses (concentration, unit economics, moat) → `dd-short-base.md`
+- `.claude/agents/dd-red-team-fast.md` — bear thesis + 1-2 stress scenarios + pre-mortem, runs in parallel without anchoring on base case → `dd-red-team-fast.md`
+- `.claude/agents/dd-short-synthesizer.md` — merges base + red team into final `dd-short.md`, applies verdict reconciliation rules R1-R5, strict no-new-numbers
+
+**DD Skills:**
+- `.claude/skills/dd/SKILL.md` — full DD pipeline orchestrator (BCG foundation + DD phases, 60-90 min)
+- `.claude/skills/dd-short/SKILL.md` — fast-mode orchestrator (~15 min standalone OR ~3 min derivation from existing master)
+- `.claude/skills/dd/references/dd-output-standard.md` — 15-rule decision-first standard (MANDATORY read for all production agents AND fast-mode agents)
 - `.claude/skills/dd/references/templates/` — structural reference templates for the three decision layers
 
 **BCG Agents:**
