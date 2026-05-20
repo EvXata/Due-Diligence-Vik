@@ -37,7 +37,16 @@ Lightweight standalone path that produces ONLY `dd-short.md`. Intelligent router
 - If `--from` points to a directory with `dd-decision-first.md` → derives via `dd-production-summary` (~3 min, full quality)
 - Otherwise → runs parallel `dd-short-fast` (3 killer hypotheses + base case) + `dd-red-team-fast` (bear thesis + stress scenario + pre-mortem), then `dd-short-synthesizer` merges with reconciliation rules (~15 min)
 
-Output retains Bear Case quote section (citation-ready bear thesis + stress scenario + compressed pre-mortem) so the file remains forward-worthy for sharing. Always carries a fast-mode disclosure flag and CTA to full `/dd` — never poses as IC-grade.
+Output retains Bear Case quote section (citation-ready bear thesis + stress scenario + compressed pre-mortem) so the file remains forward-worthy for sharing. Always carries a fast-mode disclosure flag and CTA to commission a full Strategic DD report — never poses as IC-grade. No internal commands or pipeline mechanics leak into client-facing files.
+
+**Batch fast-mode DD (multiple companies in parallel):**
+```
+/dd-short-batch Apple, Microsoft, NVIDIA, AMD
+/dd-short-batch                                 # then paste a list, one company per line
+/dd-short-batch research/companies.txt          # read from file
+/dd-short-batch <list> --batch-size 5 --deal-type secondary --language ru
+```
+Runs the dd-short fast pipeline for each company in parallel waves (default 10 companies per wave). Accepts plain names or pipe-extended rows: `Apple | $3.5T | secondary`. Produces per-company `dd-short.md` plus a sortable `batch-summary.md` table with verdicts, confidence, fair value, and gap vs asking. Resilient — one company's failure does not block the batch. Output goes to `research/batch-<date>/<slug>/`.
 
 **Run BCG analysis first, then add DD:**
 ```
@@ -244,9 +253,48 @@ User-visible output is a single file: `dd-short.md`. Intermediate drafts (`dd-sh
 - R4: No material adversarial findings → keep base case
 - R5: Worst case = max(base worst case, red team scenario downside)
 
-**Output disclosure:** `dd-short.md` in fast-mode carries a header flag (`⚡ FAST-MODE`) and a closing CTA pointing to full `/dd`. Bear Case section (≤3-sentence bear thesis + 1-2 scenario summary + compressed pre-mortem) is included unless `--no-redteam` is passed — this is what makes the output forward-worthy for sharing.
+**Output disclosure:** `dd-short.md` in fast-mode carries a header flag (`⚡ Strategic snapshot`) and a closing CTA recommending the full Strategic DD report (commercial language only — no internal command leak). Bear Case section (≤3-sentence bear thesis + 1-2 scenario summary + compressed pre-mortem) is included unless `--no-redteam` is passed — this is what makes the output forward-worthy for sharing.
 
 **Output directory:** `research/<company>-<date>-fast/` (the `-fast` suffix distinguishes fast-mode engagements from full DD).
+
+---
+
+### DD Short Batch Pipeline (`/dd-short-batch`)
+
+Wraps `dd-short` fast-mode for multiple companies with bounded parallelism. Does NOT call `/dd-short` recursively (skill-from-skill is sequential — would lose parallelism). Instead, invokes the three fast-mode agents directly per company in wave structure:
+
+```
+Per wave (max BATCH_SIZE companies, default 10):
+  Phase F-1   dd-short-fast × N      } parallel — 2N agents per wave (peak concurrency)
+              dd-red-team-fast × N   }
+  Phase F-2   dd-short-synthesizer × N (skipped for any company that failed F-1)
+  Phase F-3   cleanup drafts iff dd-short.md is non-empty
+  Phase F-4   capture verdict for batch summary
+
+Waves run sequentially (wave W+1 waits for wave W cleanup).
+
+After all waves:
+  Step 5      compile batch-summary.md (sortable table, sorted by verdict severity)
+  Step 6      optional Notion export (batch summary + per-company reports)
+```
+
+Output structure:
+```
+research/batch-<date-time>/
+  ├── batch-summary.md          ← client-facing sortable verdict table
+  ├── batch-engagement.log      ← internal log (per-wave timing, failures)
+  ├── <slug-1>/dd-short.md      ← per-company final report
+  ├── <slug-2>/dd-short.md
+  └── ...
+```
+
+**Parallelism cap:** Default batch size = 10 companies/wave → 20 simultaneous agent calls in Phase F-1 peak. Override with `--batch-size 5` for stricter cap (= 10 simultaneous calls).
+
+**Resilience:** Failed companies are flagged in batch-summary.md (`❌ FAILED` row) but never abort the batch. Failed companies keep their intermediate drafts on disk for manual debugging or re-run.
+
+**Input formats:** Plain text (one company per line OR comma-separated), pipe-extended rows (`Apple | $3.5T | secondary`), or file path. Deduplication by slug. Validation of asking-price and deal-type with logged warnings.
+
+**Client-safe output:** `batch-summary.md` follows the same disclosure rules as `dd-short.md` — no internal commands, no agent names, no pipeline mechanics leak.
 
 ---
 
@@ -325,6 +373,7 @@ bcg-audience-scout  → contact-universe.md
 **DD Skills:**
 - `.claude/skills/dd/SKILL.md` — full DD pipeline orchestrator (BCG foundation + DD phases, 60-90 min)
 - `.claude/skills/dd-short/SKILL.md` — fast-mode orchestrator (~15 min standalone OR ~3 min derivation from existing master)
+- `.claude/skills/dd-short-batch/SKILL.md` — batch fast-mode orchestrator for multiple companies (parallel waves, default 10 companies/wave, resilient to per-company failures)
 - `.claude/skills/dd/references/dd-output-standard.md` — 15-rule decision-first standard (MANDATORY read for all production agents AND fast-mode agents)
 - `.claude/skills/dd/references/templates/` — structural reference templates for the three decision layers
 
