@@ -27,24 +27,31 @@ After the FIRST export of an engagement folder, the script saves two state files
 ```
 
 ```json
-// notion-mapping.json — one entry per exported file
+// notion-mapping.json — one entry per exported file (current schema)
 {
-  "dd-decision-first": "<page_id>",
-  "dd-short": "<page_id>",
+  "dd-decision-first": {"page_id": "<id>", "sha256": "<hex>"},
+  "dd-short":          {"page_id": "<id>", "sha256": "<hex>"},
   "...": "..."
 }
 ```
 
+Legacy `{"stem": "<page_id>"}` mappings are auto-upgraded on the next run (they
+re-upload once, then store the hash for skip-eligibility going forward).
+
 On every SUBSEQUENT export of the same folder, the script:
 
 1. Reads `notion-feedback.json` → finds the engagement page (the parent).
-2. Reads `notion-mapping.json` → for each local file, finds its existing Notion page.
-3. **For files with a saved page that is still alive:** WIPES the page's blocks and re-uploads the latest content **in place**. Page ID is preserved → old Notion URLs keep working.
-4. **For new files (no prior page):** creates a new page.
-5. **For archived/deleted pages:** creates a fresh one.
-6. **Reuses the existing Feedback page** instead of creating duplicates.
+2. Reads `notion-mapping.json` → for each local file, finds its existing Notion page + prior sha256.
+3. **Allocates page IDs first (Pass 1)** so cross-file links can be rewritten to absolute Notion URLs.
+4. **For files with a saved page that is still alive AND content hash matches:** SKIPS upload entirely (zero API calls for that file).
+5. **For files with a saved page that is alive but content changed:** WIPES the page's blocks and re-uploads in place. Page ID is preserved → old Notion URLs keep working.
+6. **For new files (no prior page):** creates a new page.
+7. **For archived/deleted pages:** creates a fresh one.
+8. **Reuses the existing Feedback page** instead of creating duplicates.
 
-This means: re-running `/notion-export` on the same folder is **idempotent**. No duplicate pages, no broken links.
+This means: re-running `/notion-export` on an unchanged folder costs ~1 sec
+(zero block writes); changed files re-upload in place; nothing duplicates. No
+broken links.
 
 **Precedence order for parent page selection:**
 1. `NOTION_PARENT_PAGE_ID` env var (explicit override — always wins)
@@ -54,6 +61,11 @@ This means: re-running `/notion-export` on the same folder is **idempotent**. No
 **Force fresh pages (rare — only when you intentionally want new page IDs):**
 ```bash
 NOTION_FORCE_CREATE=1 python3 .claude/skills/notion-export/export_to_notion.py <dir>
+```
+
+**Force re-upload (keep page IDs, ignore content-hash skip):**
+```bash
+NOTION_FORCE_UPLOAD=1 python3 .claude/skills/notion-export/export_to_notion.py <dir>
 ```
 
 **Research to export:** $ARGUMENTS
