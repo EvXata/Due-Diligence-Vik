@@ -62,6 +62,64 @@ Confirm to user:
 
 ---
 
+## Step 0.5 — Engagement Type Detection (Asset vs Company)
+
+Before launching agents, classify the subject. This determines which phases are skipped.
+
+**Asset-mode triggers** (the subject is a monetary/financial asset, not an operating company):
+- Cryptocurrencies: Bitcoin (BTC), Ethereum (ETH), Solana, etc.
+- Commodities: gold, silver, oil, copper, uranium, etc.
+- Macro instruments: 10Y Treasuries, DXY, S&P 500 as an asset (not the underlying companies)
+- Any subject where the engagement is "should I buy X at price Y" rather than "how should X compete"
+
+**Auto-trigger if the subject string contains** (case-insensitive): `bitcoin`, `btc`, `ethereum`, `eth`, `gold`, `silver`, `crude oil`, `wti`, `brent`, `treasury`, `treasuries`, `dxy`, `vix`, or any explicit `--asset-mode` / `--asking-price $X per ...` style flag.
+
+**Set engagement type:**
+```bash
+# Pseudo — store as a variable used in Partner Brief
+ENGAGEMENT_TYPE="asset"   # if asset-mode triggered
+ENGAGEMENT_TYPE="company" # default
+```
+
+**Asset-mode rewires the pipeline:**
+| Phase | Company-mode | Asset-mode |
+|-------|--------------|-----------|
+| -1 Researcher | Full SEC EDGAR | On-chain + macro + holders + flows |
+| 0 Market Mapper | Business segments | Demand pools / use-case verticals |
+| 0 Data Scientist | Competitor benchmarks | Valuation models (MVRV, cycle, peer assets) |
+| 1 Segment Analysts | Per business segment | Per demand pool (investor playbooks, not company strategies) |
+| 1.5 Fact Checker | Same | Same |
+| 2 Portfolio | Strategy recommendation | GO / CONDITIONAL / PASS at entry price |
+| **2.5 GTM Analyst** | RUN | **SKIP** — no GTM for an asset |
+| **3 BCG Production** | RUN (final-report.md) | **SKIP** — DD pipeline owns the deliverables |
+| 3.5 Phase 3.5 | Optional | **N/A** — skip |
+| DD-1..DD-4 | On request | **AUTO-RUN** — asset-mode implies DD intent |
+
+**Adapt the Partner Brief language for asset-mode:**
+- Reframe "company segments" → "demand pools / value drivers"
+- Reframe "competitors" → "substitute assets"
+- 10 hypotheses become entry-decision hypotheses (cycle position, valuation, concentration, regulatory, technology, macro), not strategy hypotheses
+- Replace "the One Strategic Decision" with "the One Investment Decision: enter at $X, size Y%, with exit triggers Z"
+
+**Log it:**
+```markdown
+Engagement type: [asset | company]
+[If asset: Asset class = crypto / commodity / macro]
+[If asset: Entry / asking price = $...]
+Pipeline branches:
+  - Phase 2.5: [SKIP / RUN]
+  - Phase 3:   [SKIP / RUN]
+  - DD:        [AUTO / ON REQUEST]
+```
+
+Inform the user:
+```
+🎯 Engagement type detected: [asset|company]
+[If asset: ⚡ Asset-mode active — skipping Phase 2.5 (GTM) and Phase 3 (BCG final report); DD pipeline will run automatically after Phase 2 portfolio synthesis.]
+```
+
+---
+
 ## Step 1 — Partner Brief
 
 Output to user before launching anything:
@@ -496,6 +554,10 @@ Output to user:
 
 ## Phase 2.5 — GTM Operationalization
 
+> **⚡ SKIP GUARD:** If `ENGAGEMENT_TYPE=asset` (per Step 0.5), skip this entire phase.
+> Log `Phase 2.5: SKIPPED (asset-mode — no GTM for a tradable asset)` and jump straight to DD-1.
+> For company-mode engagements, proceed normally.
+
 One Agent call — bcg-gtm-analyst:
 
 ```
@@ -554,6 +616,12 @@ Progress: `🎯 Phase 2.5 — GTM Operationalization (bcg-gtm-analyst) → gtm-p
 ---
 
 ## Phase 3 — Production
+
+> **⚡ SKIP GUARD:** If `ENGAGEMENT_TYPE=asset` (per Step 0.5), skip this entire phase.
+> The DD pipeline (dd-decision-first.md, dd-report.md, dd-mid.md, dd-short.md) owns the
+> client-facing deliverables for asset engagements — a BCG `final-report.md` would be
+> redundant and inconsistent with the verdict layer. Log `Phase 3: SKIPPED (asset-mode)`
+> and proceed directly to DD-1 (or to Phase Post if DD already complete).
 
 One Agent call — bcg-production:
 

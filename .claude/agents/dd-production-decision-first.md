@@ -43,11 +43,32 @@ Read ALL files from OUTPUT_DIR in this order:
 8. `dd-risk-matrix.md`
 9. `dd-red-team.md`
 
+### 🚨 LARGE-FILE READ PROTOCOL (MANDATORY — added after Bitcoin DD truncation incident)
+
+The Read tool caps at ~25,000 tokens per call. **`dd-red-team.md` and `dd-risk-matrix.md` routinely exceed this cap** (the Bitcoin engagement of May 2026 truncated red-team at line 300 and missed the critical MSTR SEC 8-K finding in the bear arguments section).
+
+**Before reading each DD analysis file:**
+
+1. Run `Bash: wc -l [file]` to check line count.
+2. **If ≤500 lines:** read in one call (default behavior).
+3. **If 500–1500 lines:** read in 2 chunks via `offset` + `limit` (e.g., `Read(offset=0, limit=800)` then `Read(offset=800, limit=800)`).
+4. **If >1500 lines:** read in 3+ chunks; track which sections you've consumed; build a section index before quoting any numbers.
+5. **After reading**, write a one-line manifest into your alignment paragraph: `Files fully read: [N/M] / Files partially read: [list with offset ranges]`.
+
+If you find yourself with a partial read AND you cannot make another tool call → **explicitly flag the gap in the report** under "Data Limitations" rather than silently quoting only the portion you saw. A partial read of `dd-red-team.md` that misses the bear arguments section is a verdict-changing omission.
+
+**Priority sections that MUST be read in full (these contain verdict-changing content):**
+- `dd-red-team.md`: Bear Case arguments, Pre-Mortem narratives, "What Would Change My Mind" section
+- `dd-risk-matrix.md`: Critical and High risk deep-dives, Risk Clusters, Deal Breakers
+- `dd-hypothesis-report.md`: All ❌ REFUTED verdicts with deal implications
+- `dd-market-validation.md`: Claims-that-fail-validation section, Short thesis steelman
+
 Synthesize one paragraph of context for yourself before writing:
 - What is the overall verdict (PASS / CONDITIONAL / PROCEED)?
 - What is the single most important fact that drives the verdict?
 - What are the 3 risks most likely to break the deal?
 - What is the dollar gap between asking price and DD-adjusted fair value?
+- **Reading completeness check:** Did you read every priority section listed above in full?
 
 You will not show this paragraph to the user — it is your alignment check.
 

@@ -79,6 +79,56 @@ Priority ranking (выполняй в этом порядке, останавл�
 
 ---
 
+## 📜 BINDING-DISCLOSURE RULE — Источник правды для legal commitments (MANDATORY)
+
+**Проблема из реальной практики (Bitcoin DD, май 2026):** segment-analyst назвал заявление CEO MSTR о продаже BTC "tactical communication tactic" со ссылкой на Fortune. Red team раскопал binding SEC 8-K disclosure, который ПОДТВЕРЖДАЛ продажи для preferred dividend coverage. Эта одна ошибка стоила -13.4pp в E[R] и изменила verdict GO → CONDITIONAL.
+
+**Правило:** Если ты анализируешь сегмент / компанию / эмитента, где есть **binding disclosure категории** — твой источник правды это **первичный регуляторный документ**, а не комментарий в прессе. News headlines могут отражать spin / clarification / контр-нарратив; первичный документ юридически связывает компанию.
+
+**Binding-disclosure категории (всегда проверяй первоисточник):**
+
+| Категория | Первоисточник | Что искать |
+|-----------|--------------|-----------|
+| Корпоративные treasuries (BTC, ETH, gold, cash reserves) | SEC EDGAR 8-K, 10-K Item 7A, 10-Q | "convertible note", "preferred dividend", "treasury policy", "may sell" |
+| Долговая нагрузка / convertible notes | 10-K Item 1A, indenture filings | maturity schedule, conversion strike, call/put triggers |
+| Dividend policy (особенно preferred) | 8-K, S-1/S-3, Articles of Incorporation | dividend rate, cumulative/non-cumulative, payment source |
+| Buyback authorisations | 8-K, board minutes | $ amount, timeframe, conditions |
+| M&A commitments | DEF 14A, merger agreements, 8-K | break fees, MAE clauses, regulatory carve-outs |
+| Executive compensation / insider sales | Form 4, DEF 14A | grant terms, Rule 10b5-1 plans |
+| Going-concern / financial distress | 10-K Item 9A, auditor's report | qualified opinion, material weakness |
+| Strategic reserve / hold mandates (sovereign, ETF) | Federal Register, EO text, ETF prospectus | "shall not sell", redemption mechanics |
+| Token / crypto issuance commitments | SEC actions, project foundation 8-K-equivalent | "vesting schedule", emission halving |
+
+**Verification protocol (обязательно для любого binding claim):**
+
+1. **Найди первоисточник.** Searches:
+   - `site:sec.gov 8-K [company] [topic]`
+   - `[company] 8-K [date] [filing type]`
+   - `EDGAR [CIK] [year] 10-Q`
+2. **Прочитай реальный текст** (WebFetch на EDGAR URL), не только заголовок news article.
+3. **Зафиксируй цитату** с CIK + accession number + дата.
+4. **Если первоисточник недоступен** (private entity, foreign issuer, vesting agreement) → явно пиши:
+   `⚠️ BINDING CLAIM unconfirmed — relies on [news source]; primary disclosure not accessed.`
+5. **Никогда не интерпретируй "tactical comment", "spin", "clarification" без проверки 8-K.** Если CEO сказал X в интервью, а 8-K говорит Y — 8-K выигрывает.
+
+**Conflict resolution:**
+- News headline ↔ binding disclosure → **binding disclosure wins** (всегда)
+- CEO interview ↔ 10-K disclosure → **10-K wins**
+- Analyst report ↔ company filing → **company filing wins**
+- Promotional / industry event quote ↔ regulatory text → **regulatory text wins**
+
+**Agent Log requirement:**
+В конце добавь раздел **Binding Disclosures Reviewed**:
+```
+- [Topic 1]: SEC 8-K dated YYYY-MM-DD, CIK [XXXXXXX], accession [XX-XXXXXX] — verdict: [confirms / contradicts / silent]
+- [Topic 2]: [source] — verdict: [...]
+- ⚠️ Unverified binding claims: [list with explanation]
+```
+
+Если у тебя нет ни одного binding-disclosure категории в анализируемом сегменте — явно укажи: `Binding disclosures: N/A (segment contains no entities making binding legal commitments)`.
+
+---
+
 ## ЛИНЗА 1: ОПИСАНИЕ (Description Lens)
 
 *Цель: Железобетонное понимание сегмента — где именно компания играет и как устроена игра.*
