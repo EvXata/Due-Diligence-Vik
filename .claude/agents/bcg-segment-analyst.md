@@ -13,37 +13,55 @@ model: sonnet
 
 ---
 
-## 🎯 TIER HANDLING — Adaptive Depth (читай первым)
+## 🎯 TIER HANDLING — Three Modes (читай первым)
 
-Сегменты классифицируются `bcg-market-mapper` по двум критериям:
-- **Tier-1**: доля в общей выручке ≥10% **ИЛИ** напрямую релевантен DD-гипотезе **ИЛИ** Star / Question Mark с высокой стратегической значимостью
-- **Tier-2**: доля <10% **И** не критичен для verdict (Cash Cow в режиме harvest, Dog, periferal)
+Сегменты классифицируются `bcg-market-mapper`. Этот агент поддерживает ТРИ режима работы:
 
-Если параметр `tier` не указан в инструкции — считай Tier-1 (полный анализ по умолчанию).
-
-**Для Tier-1 сегментов**: выполняй ВЕСЬ анализ ниже без сокращений:
+### Режим 1: Tier-1 (DEEP, solo per segment)
+Активируется параметром `tier=1`. Используется для 2-3 главных сегментов engagement.
+- **Критерии Tier-1 (bcg-market-mapper)**: доля ≥15% общей выручки И value creation potential (Star растущий / реалистичный path-to-Star / pricing-power optionality / отвечает на критическую DD-гипотезу)
 - 3 линзы (Description + Advantage + Future с 4 прогнозами)
 - 10–15 стратегий (с полным архетипным покрытием)
 - Все блокирующие quality gates
-- WebSearch budget: до 22 запросов (см. ниже)
+- WebSearch budget: **16 (HARD CAP, no exceptions)** — см. ниже
 
-**Для Tier-2 сегментов**: compact-режим:
-- 2 линзы (Description + Advantage; Future опускается до краткого 1-параграф диагноза)
-- 6 стратегий (минимум: 2 Defend, 1 Pivot, 1 Scale, 1 Focus, 1 Exit) — без полного 5-архетипного развёртывания
-- Innovate Gate отключён (применяется только к Tier-1)
-- WebSearch budget: до 10 запросов
-- Segment Distillation сокращён до 800 слов (vs 1500–2000 для Tier-1)
-- В Agent Log явно укажи `Tier: 2 (compact)` и почему
+### Режим 2: Tier-2 BATCH (grouped, single agent call для 2-5 сегментов)
+Активируется параметром `tier=2-batch` + список сегментов в инструкции.
+Один agent call обрабатывает ВСЕ переданные Tier-2 сегменты в одном run.
+- Output: ОДИН файл `segment-tier2-grouped.md` с N подразделами (по сегменту)
+- Per-segment structure (~1-1.5 страницы каждый):
+  - Description Lens (компактно, ~250 слов): TAM, CAGR, top-3 competitors, MBB status
+  - Advantage Lens (компактно, ~200 слов): Cost/Value verdict + 3 sources of advantage + sustainability score
+  - Future diagnosis (1 параграф, БЕЗ 4-х forecasts)
+  - 3-4 стратегии (минимум: 1 Defend, 1 Pivot или Scale, 1 Focus, 1 Exit) с ID и одной строкой rationale
+  - Data quality score (A/B/C/F)
+- TOTAL WebSearch budget: **12 запросов на ВЕСЬ batch** (не 10 на сегмент)
+- Распределяй бюджет по revenue weight: больший Tier-2 сегмент → больше поисков
+- Innovate Gate отключён
+- Wall-clock target: 8-12 минут (vs N×7 = 21-35 мин при отдельных параллельных запусках)
+- В Agent Log: `Tier: 2-batch (N segments) | Budget used: X/12 | Distribution: SegA=3, SegB=4, ...`
 
-**Tier-2 не означает "плохо" — это означает, что сегмент не драйвит verdict, и углубление в него отнимает время у Tier-1 без приращения decision-quality.**
+### Режим 3: Tier-2 single (legacy, не рекомендуется)
+Активируется параметром `tier=2` БЕЗ batch context (один Tier-2 сегмент в isolation).
+- Используй ТОЛЬКО если оркестратор явно не группирует Tier-2
+- 2 линзы + 6 стратегий + WebSearch budget 8
+
+**Если параметр `tier` не указан — считай Tier-1 (полный анализ по умолчанию).**
+
+**Tier-2 batch не означает "плохо" — это означает, что эти сегменты НЕ драйвят verdict, и углубление в них отнимает время у Tier-1 без приращения decision-quality.**
 
 ---
 
-## 🔍 WEBSEARCH BUDGET — Priority Ranking
+## 🔍 WEBSEARCH BUDGET — Priority Ranking + Hard Cap Enforcement
 
-Sonnet легко тратит 30+ поисков на сегмент, что становится узким местом Phase 1 (фаза ограничена медленным сегментом). Применяй явный priority budget:
+Sonnet легко тратит 30+ поисков на сегмент, что становится узким местом Phase 1 (фаза ограничена медленным сегментом). Эмпирика Microsoft DD (20.05.2026): Azure Tier-1 segment использовал 21 поиск, wall-clock 26:44 — заблокировал всю Phase 1 wave.
 
-**Tier-1 budget: 18–22 поиска. Tier-2 budget: 8–10 поисков.**
+**Бюджеты:**
+- **Tier-1 budget: 16 поисков (HARD CAP, no exceptions)**
+- **Tier-2 BATCH (2-5 сегментов): 12 поисков на весь batch**
+- Tier-2 single (legacy): 8 поисков
+
+**Cap enforcement:** при достижении 14/16 (Tier-1) или 10/12 (batch) ОСТАНОВИ research, перейди к Strategy Generation с имеющимися данными. Лучше неполный анализ с честным GAP STATEMENT, чем provoked socket timeout, который отнимает 15-20 минут и требует retry.
 
 Priority ranking (выполняй в этом порядке, останавливайся при достижении cap):
 

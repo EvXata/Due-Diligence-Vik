@@ -16,27 +16,45 @@ disable-model-invocation: true
 
 ## How Auto-Routing Works (Persistent Engagement Linkage)
 
-After the FIRST export of an engagement folder, the script saves `notion-feedback.json` containing:
+After the FIRST export of an engagement folder, the script saves two state files:
+
 ```json
+// notion-feedback.json
 {
   "feedback_page_id": "...",
   "engagement_page_id": "..."
 }
 ```
 
-On every SUBSEQUENT export of the same folder (even with a different file via `NOTION_FILES_WHITELIST`), the script:
+```json
+// notion-mapping.json — one entry per exported file
+{
+  "dd-decision-first": "<page_id>",
+  "dd-short": "<page_id>",
+  "...": "..."
+}
+```
 
-1. Reads `notion-feedback.json` from the target directory
-2. Verifies the engagement page is still active (not archived) via Notion API
-3. **Auto-routes new files under the SAME engagement page** — no new parent created
-4. **Reuses the existing Feedback page** instead of creating duplicates
+On every SUBSEQUENT export of the same folder, the script:
 
-This means: once an engagement is established in Notion, **every** subsequent file added locally and re-exported lands under the same parent automatically. No env var management needed.
+1. Reads `notion-feedback.json` → finds the engagement page (the parent).
+2. Reads `notion-mapping.json` → for each local file, finds its existing Notion page.
+3. **For files with a saved page that is still alive:** WIPES the page's blocks and re-uploads the latest content **in place**. Page ID is preserved → old Notion URLs keep working.
+4. **For new files (no prior page):** creates a new page.
+5. **For archived/deleted pages:** creates a fresh one.
+6. **Reuses the existing Feedback page** instead of creating duplicates.
+
+This means: re-running `/notion-export` on the same folder is **idempotent**. No duplicate pages, no broken links.
 
 **Precedence order for parent page selection:**
 1. `NOTION_PARENT_PAGE_ID` env var (explicit override — always wins)
 2. `engagement_page_id` from `notion-feedback.json` (auto-detect from previous run)
 3. New engagement page under `NOTION_MBB_ROOT_PAGE_ID` (first run only)
+
+**Force fresh pages (rare — only when you intentionally want new page IDs):**
+```bash
+NOTION_FORCE_CREATE=1 python3 .claude/skills/notion-export/export_to_notion.py <dir>
+```
 
 **Research to export:** $ARGUMENTS
 

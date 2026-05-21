@@ -1,13 +1,33 @@
 #!/usr/bin/env python3
 """
-Export research files to Notion.
-Each file → separate child page under one parent page.
+Export research files to Notion. Idempotent: re-running updates existing pages
+instead of creating duplicates.
+
+Each file → one Notion child page under the engagement parent page.
+
+Idempotency model:
+  • On first run, creates a page per file and writes notion-mapping.json
+    ({"filename_stem": "<page_id>"}) plus notion-feedback.json (engagement +
+    feedback page IDs).
+  • On subsequent runs, reads notion-mapping.json. For each file:
+      - if its saved page is alive (not archived) → WIPES blocks + re-uploads
+        content in place. Page ID is preserved. Old Notion links keep working.
+      - if the saved page is archived/missing → creates a new page.
+      - if a file is new (not in mapping) → creates a new page.
+  • The Feedback page ID and engagement page ID survive across runs too
+    (saved in notion-feedback.json; only recreated if archived).
 
 Usage:
     NOTION_TOKEN=secret_xxx python3 export_to_notion.py <research_dir>
 
-    # Or with explicit parent page ID:
-    NOTION_TOKEN=secret_xxx NOTION_PARENT_PAGE_ID=<page_id> python3 export_to_notion.py <research_dir>
+    # Force fresh pages (ignore prior mapping — intentional rebuild):
+    NOTION_FORCE_CREATE=1 NOTION_TOKEN=secret_xxx python3 export_to_notion.py <research_dir>
+
+    # Explicit parent page override (rarely needed — auto-detected from saved state):
+    NOTION_PARENT_PAGE_ID=<page_id> NOTION_TOKEN=secret_xxx python3 export_to_notion.py <research_dir>
+
+    # Subset upload via whitelist:
+    NOTION_FILES_WHITELIST=dd-short.md,dd-mid.md python3 export_to_notion.py <research_dir>
 """
 
 import os
@@ -17,6 +37,7 @@ import time
 import json
 import requests
 from pathlib import Path
+from typing import Optional, Dict
 
 NOTION_API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
@@ -311,16 +332,37 @@ def append_blocks(headers: dict, page_id: str, blocks: list[dict]) -> None:
             time.sleep(0.3)  # Be gentle with rate limits
 
 
-def export_file(headers: dict, parent_page_id: str, filepath: Path) -> None:
-    """Read a file and create a Notion child page with its content."""
+def page_is_alive(headers: dict, page_id: str) -> bool:
+    """Return True if page exists and is not archived. False on any error or archived."""
+    try:
+        page = api_request("GET", f"{NOTION_API}/pages/{page_id}", headers)
+        return not page.get("archived", False)
+    except Exception:
+        return False
+
+
+def export_file(headers: dict, parent_page_id: str, filepath: Path,
+                existing_page_id: Optional[str] = None) -> str:
+    """Read a file and upload to Notion. Returns the page_id.
+
+    If existing_page_id is provided and the page is alive, UPDATES in place
+    (wipes existing blocks, re-appends) — idempotent. Otherwise creates new.
+    """
     print(f"  Exporting: {filepath.name}")
 
     content = filepath.read_text(encoding="utf-8")
     title = filepath.stem  # filename without extension
 
-    # Create the page
-    page_id = create_page(headers, parent_page_id, title)
-    print(f"    Created page: {title} ({page_id})")
+    page_id = None
+    if existing_page_id and page_is_alive(headers, existing_page_id):
+        page_id = existing_page_id
+        print(f"    Reusing existing page: {title} ({page_id}) — wiping blocks")
+        delete_all_blocks(headers, page_id)
+    else:
+        if existing_page_id:
+            print(f"    Saved page {existing_page_id} not alive; creating new")
+        page_id = create_page(headers, parent_page_id, title)
+        print(f"    Created page: {title} ({page_id})")
 
     # Convert to blocks
     blocks = markdown_to_blocks(content)
@@ -329,6 +371,8 @@ def export_file(headers: dict, parent_page_id: str, filepath: Path) -> None:
     # Append all blocks
     append_blocks(headers, page_id, blocks)
     print(f"    Done: {len(blocks)} blocks uploaded")
+
+    return page_id
 
 
 def get_all_block_ids(headers: dict, block_id: str) -> list[str]:
@@ -496,41 +540,42 @@ def main():
         parent_page_id = create_page(headers, root_page_id, engagement_title)
         print(f"Engagement page ID: {parent_page_id}")
 
-    # Export each file, track page IDs
-    mapping = {}
-    for filepath in files:
+    # Load prior mapping (if any) so we can re-use existing pages — idempotent uploads.
+    # NOTION_FORCE_CREATE=1 bypasses reuse and creates fresh pages (intentional fresh export).
+    force_create = os.environ.get("NOTION_FORCE_CREATE", "").strip() in ("1", "true", "yes")
+    prior_mapping: Dict[str, str] = {}
+    mapping_path = research_dir / "notion-mapping.json"
+    if mapping_path.exists() and not force_create:
         try:
-            export_file(headers, parent_page_id, filepath)
-            # Re-derive the page_id — export_file prints it; we need to capture it
-            # So we inline the logic here for mapping purposes
+            with open(mapping_path) as f:
+                prior_mapping = json.load(f)
+            if prior_mapping:
+                print(f"Loaded prior mapping: {len(prior_mapping)} entries — will reuse alive pages")
+        except Exception as e:
+            print(f"  Could not read notion-mapping.json: {e}")
+    if force_create:
+        print("NOTION_FORCE_CREATE=1 — ignoring prior mapping, creating fresh pages")
+
+    # Export each file, capturing returned page IDs directly (no second-pass enumeration).
+    mapping: Dict[str, str] = {}
+    # Preserve unrelated entries from prior mapping (e.g. Feedback page) so they survive.
+    # Only file-derived stems will be overwritten by this export.
+    file_stems = {f.stem for f in files}
+    for k, v in prior_mapping.items():
+        if k not in file_stems:
+            mapping[k] = v
+
+    for filepath in files:
+        existing_id = prior_mapping.get(filepath.stem)
+        try:
+            page_id = export_file(headers, parent_page_id, filepath,
+                                  existing_page_id=existing_id)
+            mapping[filepath.stem] = page_id
         except Exception as e:
             print(f"  ERROR exporting {filepath.name}: {e}")
-
-    # Build mapping by re-reading what was created — simpler: modify export_file to return id
-    # For now, rebuild mapping via a second pass (pages already exist, just list children)
-    print("Building page mapping...")
-    child_blocks = []
-    cursor = None
-    while True:
-        params = {"page_size": 100}
-        if cursor:
-            params["start_cursor"] = cursor
-        resp = requests.get(
-            f"{NOTION_API}/blocks/{parent_page_id}/children",
-            headers=get_headers(token),
-            params=params,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        child_blocks.extend(data.get("results", []))
-        if not data.get("has_more"):
-            break
-        cursor = data["next_cursor"]
-
-    for block in child_blocks:
-        if block.get("type") == "child_page":
-            title = block["child_page"]["title"]
-            mapping[title] = block["id"]
+            # If we had a prior page, keep it in mapping so a later run can retry update.
+            if existing_id:
+                mapping[filepath.stem] = existing_id
 
     # Feedback page: reuse existing if previously created (avoid duplicates on re-uploads).
     feedback_page_id = None

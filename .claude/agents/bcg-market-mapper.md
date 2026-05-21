@@ -162,14 +162,27 @@ model: sonnet
 | Сегмент | Выручка компании ($) | % от общей | Доля рынка | CAGR рынка | MBB-статус | Приоритет | **Depth Tier** |
 |---------|---------------------|-----------|-----------|------------|------------|-----------|----------------|
 
-**Depth Tier classification** (применяй обязательно):
-- **Tier-1** → присваивай если: доля сегмента ≥10% общей выручки **ИЛИ** Star/Question Mark **ИЛИ** сегмент напрямую релевантен ключевому стратегическому вопросу engagement
-- **Tier-2** → присваивай если: доля <10% **И** Cash Cow в harvest-режиме / Dog / peripheral сегмент, который не драйвит финальное решение
+**Depth Tier classification** — STRICT priority model (обязательно):
+
+**Tier-1 (DEEP, parallel solo agent)** — присваивай ТОЛЬКО если выполнены ОБА условия:
+- **(A) Revenue concentration:** доля сегмента **≥15% общей выручки** ИЛИ топ-3 сегмент по абсолютной выручке
+- **(B) Value creation potential** — хотя бы один из:
+  - Star с растущей relative market share
+  - Question Mark с реалистичным path-to-Star (конкретный strategic asset / wedge)
+  - Сегмент с pricing power / optionality (AI add-on, network effect leverage, regulatory moat)
+  - Сегмент, ОДИН отвечающий на критическую DD-гипотезу (e.g. Gaming для goodwill impairment)
+
+**🚨 HARD CAP: максимум 3 Tier-1 сегмента.** Если кандидатов >3 — выбери по NPV impact на DD verdict, остальных downgrade в Tier-2-batch.
+
+**Tier-2 (GROUPED, single batched agent call)** — ВСЕ остальные сегменты идут в ОДИН batched run, не параллельно отдельными агентами.
+Включает: Cash Cows в harvest, Dogs, peripheral Question Marks, sub-15% сегменты.
+Обоснование группировки: ни один из них не драйвит verdict; групповой compact-анализ даёт directional view за ¼ wall-clock vs. отдельные параллельные запуски.
 
 Под каждой строкой таблицы добавь 1-строчное обоснование Tier'а.
-Это указание используется downstream `bcg-segment-analyst` для выбора между full и compact-режимом анализа (Tier-1: 10–15 стратегий + 3 линзы; Tier-2: 6 стратегий + 2 линзы).
+Это указание используется downstream `bcg-segment-analyst` для выбора между full Tier-1 режимом и Tier-2 batch режимом (см. agent docs).
 
-**Если в портфеле 4–7 сегментов и ВСЕ присвоены Tier-1 — пересмотри**: вероятно ты не применил критерий "не драйвит verdict". Типичное здоровое распределение в портфеле: 2–4 Tier-1 + 1–3 Tier-2.
+**Здоровое распределение портфеля: 2-3 Tier-1 + 1 Tier-2-batch (содержащий 3-5 сегментов).**
+Если у тебя >3 Tier-1 — это ошибка приоритизации, пересмотри критерий (A)+(B).
 
 ---
 

@@ -267,6 +267,19 @@ Then read `market-map.md`. Extract segments. Output:
 
 ### BCG Phase 1 — Deep Segment Analysis (Parallel, Tier-Aware)
 
+> **🚨 PRE-FLIGHT BATCH COUNT GATE — MANDATORY (added after Cursor DD 19.05.2026 bug post-mortem):**
+>
+> Before launching ANY segment-analyst, run this enumeration check:
+> 1. `grep -E "СЕГМЕНТ [0-9]|^## \[?СЕГМЕНТ\b" [OUTPUT_DIR]/market-map.md | wc -l` → expected_segment_count
+> 2. Also extract segment slugs from the "итоговая карта" table at the top of market-map.md
+> 3. Expected agent count = expected_segment_count + 1 (segments + 1× domain-expert)
+> 4. State explicitly to user: `"Phase 1 launch plan: N segments detected from market-map → launching N+1 agents in parallel:"` followed by the full enumerated list with slugs
+> 5. Send a SINGLE message with EXACTLY N+1 Agent tool calls — verify the count matches before sending
+>
+> **Root cause of bug being prevented:** On Cursor DD, orchestrator launched 4 agents (3 segments + domain-expert) instead of 5 (4 segments + domain-expert) — missed S4 Autonomous Agents which had to run sequentially later, costing ~46 min wall-clock (~35% of total DD time).
+>
+> If the explicit count doesn't match enumerated segments — STOP and rebuild the batch. Do not proceed with an incomplete launch.
+
 > **Tier-aware depth screening:** Before launching segment analysts, parse `market-map.md`
 > for the **Depth Tier** column. Each segment is marked Tier-1 (full analysis) or Tier-2
 > (compact: 6 strategies, 2 lenses, search budget 10). Pass `tier` parameter into each

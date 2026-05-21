@@ -15,13 +15,35 @@ model: haiku
 
 ---
 
-## Шаг 1 — Прочитай все материалы
+## Шаг 1 — Прочитай материалы (STRICT READING DISCIPLINE)
 
-Read из OUTPUT_DIR:
-- `market-map.md` — исходная карта рынка
-- `segment-[name].md` — для КАЖДОГО сегмента (читай все)
-- `domain-expert-input.md` — если существует
-- `advanced-analytics.md` — если существует
+**🚨 CRITICAL: НЕ читай ВСЕ segment-*.md файлы целиком одновременно.**
+
+Эмпирика Microsoft DD (20.05.2026): полный full-read 7 segment-*.md файлов (>500KB суммарно) вызвал stream idle timeout дважды — первая попытка 149 мин → fail, retry 104 мин. Digest-only режим должен укладываться в 8-15 минут.
+
+### PRIMARY (читай ПОЛНОСТЬЮ — головной источник)
+- `phase-1.5-digest.md` — содержит validation + market-validation + hypothesis verdicts в сжатой форме
+- `segment-tier2-grouped.md` — это уже компактный батч (1-1.5 стр. на сегмент), читай полностью
+- `market-map.md` — исходная карта рынка с Tier-классификацией
+
+### SECONDARY (только targeted Grep / частичные reads — НЕ full read)
+Для каждого Tier-1 файла `segment-[tier1-name].md` (обычно 2-3 файла):
+- Grep по `Strategy ID` или `## Стратегия` — для портфельной таблицы стратегий
+- Grep по `Recommended` / `Рекомендация` — для выбора top picks
+- Grep по `Revenue $` / `Выручка` — для reconciliation
+- Grep по `MBB-статус` — для матрицы
+- Read первые 50 строк (executive summary только) если digest неполный
+
+### OPTIONAL
+- `domain-expert-input.md` — если существует, для cross-segment insider patterns
+- `advanced-analytics.md` — если существует, для benchmarks
+- `phase-dd2-digest.md` — если DD-2 уже прошёл (контекст рисков для Selection Lens)
+
+### FORBIDDEN
+- **Full reads всех segment-*.md файлов одновременно** — это причина таймаутов
+- WebSearch (этот агент — синтезатор, не исследователь)
+
+Если какой-то факт критичен и отсутствует в digest → пометь `[MISSING — backfill in DD-3a from segment-X.md]` и иди дальше. НЕ читай полные segment файлы.
 
 Составь в голове полную картину: сколько сегментов, каков MBB-статус каждого, какие стратегии предложены.
 

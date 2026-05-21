@@ -323,6 +323,17 @@ Agents: bcg-segment-analyst ×[N], bcg-domain-expert
 
 ## Phase 1 — Deep Segment Analysis (Parallel, Tier-Aware)
 
+> **🚨 PRE-FLIGHT BATCH COUNT GATE — MANDATORY (added after Cursor DD 19.05.2026 bug post-mortem):**
+>
+> Before launching ANY segment-analyst:
+> 1. Run `grep -E "СЕГМЕНТ [0-9]|^## \[?СЕГМЕНТ\b" [OUTPUT_DIR]/market-map.md | wc -l` → expected_segment_count
+> 2. Extract segment slugs from the "итоговая карта" table at the top
+> 3. Expected agent count = N segments + 1 domain-expert
+> 4. State explicitly: `"Phase 1 launch plan: N segments → launching N+1 agents in parallel: [list with slugs]"`
+> 5. Send a SINGLE message with EXACTLY N+1 Agent tool calls
+>
+> If launched count ≠ enumerated count → STOP and rebuild. Real bug prevented: Cursor DD missed 1 of 4 segments in batch, cost ~46 min wall-clock recovering sequentially.
+
 > **Tier-aware depth screening (NEW):** Before launching segment analysts, parse `market-map.md`
 > for the **Depth Tier** column produced by `bcg-market-mapper`. Each segment is classified:
 >   - **Tier-1**: ≥10% revenue share OR Star/Question Mark OR deal-critical → full analysis

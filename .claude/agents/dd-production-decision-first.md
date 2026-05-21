@@ -11,7 +11,11 @@ Your output is **`dd-decision-first.md`** — the single source of truth for `dd
 
 You receive: company name, OUTPUT_DIR, deal type, asking price (entry price), language.
 
-**Critical:** Save full output to `[OUTPUT_DIR]/dd-decision-first.md` via Write tool.
+**Critical (two outputs, not one):**
+1. Save full master report to `[OUTPUT_DIR]/dd-decision-first.md` via Write tool.
+2. **ALSO emit `[OUTPUT_DIR]/master-anchors.json`** — ~3-5KB structured anchors file containing every load-bearing number/verdict from the master. Schema in Step Final below.
+
+**Why anchors file (added after Cursor DD bug B3 post-mortem):** the master often grows to 80-120KB. Downstream Haiku-derive agents (`dd-production-summary`, `dd-production`) cannot reliably read it in full and degrade to re-reading supporting analyses — which violates the "pure derive from master" architectural promise and risks number inconsistency. master-anchors.json is the small canonical source of truth Haiku derives can guarantee to read.
 
 ---
 
@@ -606,3 +610,105 @@ Errors: [list or "none"]
 ```
 
 Confirm: `✅ Decision-First DD Report saved: [OUTPUT_DIR]/dd-decision-first.md`
+
+---
+
+## Step Final — Emit master-anchors.json (MANDATORY, immediately after Write)
+
+After saving the master report, emit **`[OUTPUT_DIR]/master-anchors.json`** with this exact schema. This file is read by `dd-production-summary` (Haiku) and `dd-production` (Haiku-derive) — they cannot deviate from these anchors when producing summary/legal layers.
+
+Schema:
+```json
+{
+  "company": "[Company]",
+  "deal_type": "[M&A / PE Growth / VC / Secondary / Series E / etc]",
+  "asking_price_value": "[$50B pre-money]",
+  "asking_price_implied_multiple": "[25x ARR or 12x EBITDA — whatever applies]",
+  "date": "[YYYY-MM-DD]",
+
+  "verdict": "[PROCEED / CONDITIONAL / PASS]",
+  "verdict_rule_14_triggered": [true/false],
+  "verdict_rationale_oneline": "[one sentence — e.g. '4 refuted hypotheses = PASS, no exceptions']",
+  "confidence_pct": [0-100],
+  "confidence_interpretation": "[high conviction / moderate conviction / low conviction]",
+  "deal_score": [0-10, one decimal],
+
+  "threshold_ladder": {
+    "pass_at": "[$50B (current entry)]",
+    "conditional_at": "[$32-35B (with milestone ratchet + Anthropic terms disclosure)]",
+    "proceed_below": "[$25B]"
+  },
+
+  "fair_value": {
+    "base_range": "[$20-26B]",
+    "optimistic_range": "[$30-35B]",
+    "conservative_range": "[$12-16B]",
+    "probability_weighted_return_pct": [-37.6]
+  },
+
+  "hypothesis_scorecard": {
+    "confirmed_count": [N],
+    "uncertain_count": [N],
+    "refuted_count": [N],
+    "refuted_ids": ["H-C1", "H-S1", "H-V1", "H-X1"],
+    "refuted_one_liners": {
+      "H-C1": "[1 sentence why refuted, verbatim from report]",
+      "H-S1": "[...]"
+    }
+  },
+
+  "risk_matrix": {
+    "critical_count": [N],
+    "high_count": [N],
+    "medium_count": [N],
+    "low_count": [N],
+    "total": [sum],
+    "deal_breakers_count": [N],
+    "deal_breaker_titles": ["DB-1 title", "DB-2 title", "..."]
+  },
+
+  "red_team": {
+    "bear_case_value": "[$Xm]",
+    "bear_case_pct_of_asking": [X],
+    "deep_bear_value": "[$Xm]",
+    "adversarial_twin_tripwires_count": [N],
+    "stress_scenarios_count": 3
+  },
+
+  "value_bridge": {
+    "asking_price": "[$Xm]",
+    "adjustments": [
+      {"name": "Market inflation", "delta": "-$Xm"},
+      {"name": "Risk discount", "delta": "-$Xm"}
+    ],
+    "dd_adjusted_value": "[$Xm]",
+    "gap_pct": [X],
+    "gap_absolute": "[-$Xm]"
+  },
+
+  "top_3_deal_break_triggers": [
+    "[exact verbatim sentence #1]",
+    "[exact verbatim sentence #2]",
+    "[exact verbatim sentence #3]"
+  ],
+
+  "conditions_for_proceed": [
+    "[only populated if verdict = CONDITIONAL — list verbatim conditions]"
+  ],
+
+  "post_close_priorities_100day": [
+    "[priority 1]",
+    "[priority 2]",
+    "[priority 3]"
+  ],
+
+  "data_quality_notes": "[1-2 sentences — what's missing, what should be in data room]",
+  "missing_inputs": "[e.g. 'portfolio.md skipped due to Rule 14 short-circuit' or 'none']"
+}
+```
+
+**Save via Write tool to `[OUTPUT_DIR]/master-anchors.json`.**
+
+If you cannot populate any required field, use string `"MISSING"` rather than omitting the key — downstream parsers expect every key to be present.
+
+Confirm: `✅ master-anchors.json saved (X.Xkb) — downstream Haiku derives will read this as canonical anchors source`
