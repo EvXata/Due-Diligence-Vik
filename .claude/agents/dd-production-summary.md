@@ -32,9 +32,15 @@ If any reference is missing, STOP and report. Do not proceed.
 
 ---
 
-## Step 1 — Read the Master
+## Step 1 — Read the Anchors First, Then the Master
 
-Read **`[OUTPUT_DIR]/dd-decision-first.md`** in full. This is your single source of truth.
+**NEW (added after Cursor DD bug B3 post-mortem):** Read in this order:
+
+1. **`[OUTPUT_DIR]/master-anchors.json`** — small (~3-5KB) structured anchors emitted by `dd-production-decision-first`. This is your CANONICAL source for verdict, confidence, deal score, fair value range, threshold ladder, hypothesis scorecard, risk counts, deal breakers, top-3 deal-break triggers, and value bridge.
+   - **If master-anchors.json is missing** → flag in Agent Log: `master-anchors.json missing — falling back to direct master read (degraded mode)`. Proceed to step 2 as fallback.
+   - **If master-anchors.json is present** → use values from it verbatim. Do NOT re-derive.
+
+2. **`[OUTPUT_DIR]/dd-decision-first.md`** — read for **narrative context only** (failure scenarios wording, So-what blocks phrasing). Do NOT extract anchor numbers from here if anchors.json is present (anchors.json wins on conflict — it is the canonical extracted view).
 
 Extract and verify the presence of:
 - Verdict (PASS / CONDITIONAL / PROCEED) with threshold ladder

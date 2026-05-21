@@ -3,6 +3,45 @@
 
 ---
 
+## 2026-05-20 — Microsoft Strategic DD engagement
+
+**Overall:** Pipeline completed successfully (CONDITIONAL LONG verdict, 4 decision layers + 8 supporting analyses), но wall-clock 3h 16m vs план 50-70min (4-5x overrun); 3 agent timeouts; Phase 2 portfolio bottleneck = 104 min single-agent wall-clock.
+
+### Root causes identified
+1. **Tier-2 sprawl** — 4 отдельных Tier-2 segment-analysts вместо группового pass (Microsoft: LinkedIn + Dynamics + Search + Windows/On-prem × 7-11 min each в parallel wave, фактически не давало speedup т.к. Tier-1 Azure был bottleneck)
+2. **Portfolio agent context overload** — full reads 7 segment-*.md файлов (>500KB суммарно) → stream idle timeout (149 min first attempt, 104 min retry)
+3. **Unbounded WebSearch** — Azure Tier-1 segment-analyst использовал 21 поиск (cap был 22), wall-clock 26:44 заблокировал всю Phase 1 wave
+4. **No retry strategy** — failed агенты перезапускались с оригинальным prompt вместо EFFICIENCY MODE prefix
+5. **No target word counts** — Sonnet писал 8-15K-word outputs, вызывая socket timeouts на агентах с большим контекстом
+
+### Changes applied (P1 — auto-applied 2026-05-20)
+1. **bcg-market-mapper.md** — Tier-1 hard cap 3 segments; новые критерии: revenue ≥15% AND value creation potential. Tier-2 grouping rule: ALL non-Tier-1 → ОДИН batched run.
+2. **bcg-segment-analyst.md** — новый режим `tier=2-batch` (один agent обрабатывает 2-5 Tier-2 сегментов, output: ОДИН файл `segment-tier2-grouped.md`, WebSearch budget 12 на весь batch); Tier-1 WebSearch hard cap снижен с 22 → 16 с cap enforcement на 87.5%
+3. **bcg-portfolio-analyst.md** — STRICT READING DISCIPLINE: PRIMARY (digest + segment-tier2-grouped), SECONDARY (только Grep по Tier-1 файлам), FORBIDDEN (full reads всех segment-*.md)
+4. **dd/SKILL.md** — Phase 1 launch logic переписана: max 3 Tier-1 + 1 Tier-2 batch + 1 domain-expert = 3-5 agents (было до 8+); добавлен EFFICIENCY MODE recovery pattern; добавлена Target Length Table на все agent prompts
+
+### Expected impact (target benchmarks для следующего mega-cap DD)
+- Phase 1 wall-clock: 26:44 → 15-20 min (-25 to -45%)
+- Phase 2 wall-clock: 104 min → 8-15 min (**-85%**)
+- Phase 1.5/DD-1 wall-clock (с retry): ~26 min → ~12 min (-55%)
+- **Total wall-clock на mega-cap DD: 3h 16m → ~1h 30m-2h (-40 to -55%)**
+- Agent calls Phase 1: 8 → 5 (-37%)
+- Failure rate: 21% (3/14) → target <5%
+
+### Preserved (NOT changed)
+- 5 lenses framework
+- Segmentation principle (competitor existence test)
+- 10 DD hypotheses standard
+- 15 rules of dd-output-standard.md
+- Tier-1 archetype completeness gates
+- Rule 14 (3+ refuted → automatic PASS)
+- Quality bar (verified data tags ✅/⚠️/❌)
+
+### Methodology principle reinforced
+**Приоритизация > параллелизм.** Запуск 8 агентов параллельно не быстрее запуска 5 правильно отобранных агентов, когда bottleneck — один Tier-1 сегмент. Группировка некритичных сегментов в один batch + снижение search caps на критичных = главный рычаг оптимизации.
+
+---
+
 ## 2026-04-10 — GlobalFoundries (GFS) engagement
 
 **Overall Quality:** A-

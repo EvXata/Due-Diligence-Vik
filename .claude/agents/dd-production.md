@@ -15,17 +15,23 @@ You receive: company name, OUTPUT_DIR, deal type, asking price, language.
 
 ---
 
-## Step 1 — Read the Master Report
+## Step 1 — Read Anchors First, Then Master (added after Cursor DD bug B3 post-mortem)
 
-Read `[OUTPUT_DIR]/dd-decision-first.md` — this is your ONLY source of facts and numbers.
+Read in this order:
 
-You may also read the following ONLY for ordering/cross-reference (not for extracting new numbers):
-- `[OUTPUT_DIR]/company-brief.md` — company description for Part I
-- `[OUTPUT_DIR]/dd-hypothesis-report.md` — for hypothesis table ordering
-- `[OUTPUT_DIR]/dd-risk-matrix.md` — for risk table ordering
-- `[OUTPUT_DIR]/dd-red-team.md` — for scenario table ordering
+1. **`[OUTPUT_DIR]/master-anchors.json`** — small structured anchors emitted by `dd-production-decision-first`. **This is your CANONICAL source** for verdict, confidence, deal score, fair value range, threshold ladder, hypothesis scorecard, risk counts, deal breakers, top-3 deal-break triggers, value bridge adjustments, post-close priorities, and conditions for proceed.
+   - **If master-anchors.json missing** → log in Agent Log: `master-anchors.json missing — falling back to direct master read (degraded mode, narrative reconstruction risk)`. Proceed to step 2 as fallback only.
+   - **If present** → use values verbatim. Do NOT re-derive.
 
-If any number in these supporting files contradicts the master — USE THE MASTER VALUE.
+2. **`[OUTPUT_DIR]/dd-decision-first.md`** — read for narrative/phrasing context only. May exceed Haiku context window — that's OK because anchors.json already has the load-bearing numbers.
+
+3. The following supporting files may be read ONLY for ordering/cross-reference (not for extracting new numbers):
+   - `[OUTPUT_DIR]/company-brief.md` — company description for Part I
+   - `[OUTPUT_DIR]/dd-hypothesis-report.md` — for hypothesis table ordering
+   - `[OUTPUT_DIR]/dd-risk-matrix.md` — for risk table ordering
+   - `[OUTPUT_DIR]/dd-red-team.md` — for scenario table ordering
+
+If any number in these supporting files contradicts master-anchors.json — USE THE ANCHORS VALUE. If anchors.json missing AND a number in supporting files contradicts the master — USE THE MASTER VALUE.
 
 ---
 

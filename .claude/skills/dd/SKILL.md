@@ -53,6 +53,49 @@ BCG Foundation: [USING EXISTING / RUNNING NOW]
 
 ---
 
+## Step 0.5 — Pre-Flight Company State Check (MANDATORY, added after Cursor DD bug B7 post-mortem)
+
+**Why this exists:** On Cursor DD (19.05.2026), the orchestrator started with $30B asking-price assumption (extrapolated from Series C $9.9B trajectory). Phase -1 researcher then revealed actual market signal was **$50B Series E in talks** (TechCrunch April 2026). Engagement log had to be retroactively edited, and the Partner Brief published to the user was inaccurate. Worse: if `--asking-price` had been hardcoded and never revisited, hypothesis-tester would have tested the wrong H-V1 claim.
+
+**Fix:** Before publishing the Partner Brief, run ≤3 targeted WebSearches (≤90 seconds total) to verify current company state. Cross-check against any `--asking-price` arg the user provided.
+
+Execute these WebSearches yourself (orchestrator, NOT subagent — keep it fast, no Agent call):
+1. `[Company] latest funding round valuation [current year]`
+2. `[Company] ARR revenue [current quarter] [current year]`
+3. `[Company] news last 30 days site:techcrunch.com OR site:bloomberg.com OR site:theinformation.com`
+
+**Reconciliation logic:**
+- If user-provided `--asking-price` matches the latest market signal (±15%) → proceed with user's value
+- If divergent (>15% gap, or last round was clearly stale) → ask user via AskUserQuestion:
+  ```
+  ⚠️ PRE-FLIGHT FINDING — asking-price reconciliation needed
+  You provided: [user-asking-price]
+  Market signal: [discovered-asking-price]  (source: [URL, date])
+  Gap: [X]%
+
+  Which to model? (a) Your value (b) Market signal (c) Both — dual scorecards
+  ```
+- If user did NOT provide `--asking-price` → use discovered market signal as default, state explicitly in Partner Brief: `Asking Price: [discovered] (auto-detected from [source]); override with --asking-price if a different scenario is intended.`
+
+**Other state to surface in pre-flight (if material):**
+- Recent C-suite changes in last 6 months → impacts H-P1 framing
+- Pending litigation/regulatory action → impacts H-R1
+- Acquisition rumors (e.g. Cursor's SpaceX $60B option) → impacts deal-context section
+
+Log pre-flight outcome to `dd-engagement.log`:
+```markdown
+## Pre-Flight Check
+Status: ✅ COMPLETED
+WebSearch queries: 3
+Asking price: [user-provided or discovered]
+Reconciliation: [matched / revised / dual]
+Material state surprises: [list, or "none"]
+```
+
+**Time budget for Step 0.5: ≤90 seconds. Do not exceed 3 WebSearches.** If can't verify in time, proceed with user-provided value but flag `⚠️ pre-flight inconclusive` in Partner Brief.
+
+---
+
 ## Step 1 — DD Partner Brief
 
 Output to user:
@@ -60,7 +103,7 @@ Output to user:
 ```
 ## 🔍 DD Partner Brief — [Company Name]
 
-**Deal:** [Company] | [deal-type] | Asking: [asking-price or "price not specified"]
+**Deal:** [Company] | [deal-type] | Asking: [asking-price] [✅ pre-flight verified / ⚠️ pre-flight inconclusive / 🔄 pre-flight revised from [user-value]]
 **Language:** [language]
 
 **10 DD Hypotheses (to be tested):**
@@ -280,42 +323,68 @@ Then read `market-map.md`. Extract segments. Output:
 >
 > If the explicit count doesn't match enumerated segments — STOP and rebuild the batch. Do not proceed with an incomplete launch.
 
-> **Tier-aware depth screening:** Before launching segment analysts, parse `market-map.md`
-> for the **Depth Tier** column. Each segment is marked Tier-1 (full analysis) or Tier-2
-> (compact: 6 strategies, 2 lenses, search budget 10). Pass `tier` parameter into each
-> agent call. This saves wall-clock when Phase 1 is bottlenecked by the slowest segment —
-> Tier-2 segments complete in ~half the time without losing decision-quality (because they
-> don't drive the verdict by construction).
+> **Tier-aware depth screening (UPDATED post-Microsoft DD 20.05.2026):**
+> Before launching segment analysts, parse `market-map.md` for the **Depth Tier** column.
 >
-> Typical distribution: 2–4 Tier-1 + 1–3 Tier-2 segments.
+> **NEW LAUNCH MODEL — Tier-2 BATCH GROUPING:**
+> - **Tier-1 (DEEP):** max 3 segments. Each gets its own parallel `bcg-segment-analyst` call with `tier=1`.
+>   Criteria (from market-mapper): доля ≥15% revenue AND value creation potential.
+> - **Tier-2 (GROUPED):** ALL non-Tier-1 segments go into ONE batched agent call with `tier=2-batch`.
+>   Single agent processes 2-5 Tier-2 segments → outputs `segment-tier2-grouped.md` (1-1.5 pages per segment).
+> - **Domain expert:** always 1 separate call.
 >
-> **🆕 Mega-cap override (if `MEGA_CAP=true`):** ignore the market-map tier column. Sort
-> segments by revenue (descending). Assign Tier-1 to the TOP 2 only; everything else is
-> Tier-2 regardless of strategic flag. For a 7-segment mega-cap like Microsoft, this is
-> "Azure + M365 at Tier-1; Gaming, Dynamics, Search, LinkedIn, Windows-Consumer all
-> Tier-2." Saves ~15 min wall-clock in Phase 1 with <5% decision-quality impact
-> (small segments do not move the verdict for mega-caps by construction).
+> **Total parallel calls in Phase 1: 3-5** (was up to 8+ in pre-Microsoft pipeline).
+> Wall-clock target: 15-20 min (Tier-1 bottleneck only) vs prior 25-35 min.
+>
+> **Empirical evidence (Microsoft DD 20.05.2026):** Pre-update launched 8 agents (3 Tier-1 + 4 Tier-2 + 1 expert). Tier-2 segments each took 7-11 min in parallel. Grouped Tier-2 batch estimated 8-12 min total → saves ~5-10 min wall-clock without verdict-quality loss.
+>
+> **🆕 Mega-cap override (if `MEGA_CAP=true`):** force top-2 ONLY at Tier-1; everything else into Tier-2 batch (overrides market-map tier flags).
+> For Microsoft: Azure + M365 Tier-1; Gaming + Dynamics + Search + LinkedIn + Windows-Consumer → ONE Tier-2 batch.
 
-In a **single message**, [N+1] Agent calls simultaneously:
+In a **single message**, launch EXACTLY 3-5 Agent calls simultaneously:
+- 2-3× `bcg-segment-analyst` for Tier-1 segments (one per segment, `tier=1`)
+- 1× `bcg-segment-analyst` for Tier-2 batch (`tier=2-batch` with full segment list)
+- 1× `bcg-domain-expert`
 
-**Per-segment — bcg-segment-analyst (one per segment):**
+**Per Tier-1 segment — bcg-segment-analyst (max 3 calls):**
 ```
 Company: [name]
 Segment: [Segment name]
-Tier: [1 or 2 — from market-map.md Depth Tier column]
+Tier: 1
 Output file: [OUTPUT_DIR]/segment-[slug].md
 Language: [language]
+TARGET LENGTH: 4500-6500 words (HARD CAP)
 
 Read first: [OUTPUT_DIR]/company-brief.md, [OUTPUT_DIR]/market-map.md
 
 [Paste full segment context from market-map.md]
 
-For Tier-1: Full 3-lens analysis (Description → Advantage → Future with 4 forecasts),
-10–15 strategies, all quality gates, WebSearch budget 18–22.
-For Tier-2: Compact 2-lens (Description + Advantage; Future = 1-para diagnosis),
-6 strategies (2D, 1P, 1S, 1F, 1 exit), WebSearch budget 8–10, Innovate Gate N/A.
+Full 3-lens analysis (Description → Advantage → Future with 4 forecasts),
+10–15 strategies, all quality gates, WebSearch budget: 16 (HARD CAP, no exceptions).
+At search 14/16 — STOP research, proceed to Strategy Generation with what you have.
 
 Save complete output using Write tool.
+```
+
+**Tier-2 BATCH call — bcg-segment-analyst (ONE call для ВСЕХ Tier-2 сегментов):**
+```
+Company: [name]
+Mode: tier=2-batch
+Segments to analyze (N=[count]): [Segment A, Segment B, Segment C, Segment D, ...]
+Output file: [OUTPUT_DIR]/segment-tier2-grouped.md
+Language: [language]
+TARGET LENGTH: 3000-4500 words TOTAL for entire batch
+
+Read first: [OUTPUT_DIR]/company-brief.md, [OUTPUT_DIR]/market-map.md
+(focus on sections covering these specific Tier-2 segments)
+
+Process each segment in compact mode:
+- ~1-1.5 pages per segment in single output file
+- Description (250w) + Advantage (200w) + Future diagnosis (1 para) + 3-4 strategies + DQ score
+- TOTAL WebSearch budget for entire batch: 12 calls (distribute by revenue weight)
+- At search 10/12 — STOP, proceed to Strategy Generation
+
+Save complete output to single file using Write tool.
 ```
 
 **bcg-domain-expert:**
@@ -1028,6 +1097,55 @@ Produces four PDFs in Xata&co Bridgewater style with cover, TOC, verdict badge
 
 ---
 
+## Failure Recovery Pattern — EFFICIENCY MODE
+
+**Added post-Microsoft DD (20.05.2026)** — empirical observation: 3 of 14 agents (21%) failed with socket idle timeout / stream timeout when wall-clock exceeded 15-17 min.
+
+**Rule:** Если агент упал с socket timeout / stream idle (>15 мин wall-clock) — НЕ перезапускай оригинальный prompt. Переключись на EFFICIENCY MODE.
+
+**EFFICIENCY MODE prompt prefix (paste at top of retry prompt):**
+```
+EFFICIENCY MODE: Target {N} words (see target length table below). WebSearch budget
+reduced to MAX 10 calls (HARD CAP). Most evidence is already in OUTPUT_DIR files
+(phase digest + segment files + prior DD outputs) — leverage that.
+Skip exhaustive sourcing on points where 2+ files already converge.
+Be decisive on verdict, not exhaustive on evidence.
+```
+
+**Empirical evidence (Microsoft DD 20.05.2026):**
+- `dd-market-validator`: first attempt 17 min → fail (stream idle); EFFICIENCY retry 9 min ✅
+- `dd-hypothesis-tester`: first attempt 16:38 → fail; EFFICIENCY retry 8:35 ✅
+- `bcg-portfolio-analyst`: first attempt 149 min → fail; EFFICIENCY retry 104 min (still slow — root cause was full-read of all segment files; fixed in bcg-portfolio-analyst.md "Шаг 1" rewrite)
+
+---
+
+## Target Length Table — MANDATORY for all agent prompts
+
+Each agent prompt MUST include explicit `TARGET LENGTH: X-Y words` line. Empirically, unbounded prompts cause Sonnet to write 8,000-15,000-word outputs that trigger socket timeouts.
+
+| Agent | Target words | Notes |
+|-------|--------------|-------|
+| bcg-researcher | 4,000-6,000 | Single source of truth, OK to be longer |
+| bcg-market-mapper | 3,500-5,000 | 4-7 segments × ~500 words each + meta |
+| bcg-data-scientist | 4,000-5,500 | Tables-heavy |
+| bcg-segment-analyst Tier-1 | 4,500-6,500 | Per segment, full 3 lenses |
+| bcg-segment-analyst Tier-2-batch | 3,000-4,500 | Entire batch of 2-5 segments |
+| bcg-domain-expert | 3,500-5,000 | 10 hypotheses × 350 words |
+| bcg-fact-checker | 3,000-4,500 | Tables + flags |
+| dd-market-validator | 4,000-5,000 | **Previously unconstrained → caused timeout** |
+| dd-hypothesis-tester | 4,500-5,500 | **Previously unconstrained → caused timeout** |
+| bcg-portfolio-analyst | 3,500-4,500 | **Previously unconstrained → 149min timeout** |
+| dd-risk-analyst | 4,000-5,000 | 15-20 risks |
+| dd-red-team | 4,500-5,500 | Bear case + 3 scenarios + pre-mortem |
+| dd-production-decision-first | 8,000-12,000 | IC-grade master, OK to be long |
+| dd-production-summary | mid: ~4,000 \| short: ~800 | Derivation, no new content |
+| dd-production (legal) | 4,000-6,000 | Reformatter, derivation |
+| dd-insight-booster | 600-1,200 | 3-5 insights × 150-250 words |
+
+**Rule:** If an agent's prior run timed out, set target at LOWER bound of range. If output came back complete in <12 min, target was correctly sized.
+
+---
+
 ## Standards
 
 - **DD hypotheses must be company-specific** — not generic. Customize H-M1 through H-X1 to the actual company and deal context in the Partner Brief.
@@ -1035,3 +1153,6 @@ Produces four PDFs in Xata&co Bridgewater style with cover, TOC, verdict badge
 - **Bear case must be quantified** — not qualitative. Bear case revenue, margins, multiples, implied EV.
 - **CONDITIONAL is not a dodge** — if verdict is CONDITIONAL, conditions must be specific and verifiable.
 - **Files first** — every agent saves output before reporting back. Nothing lives only in context.
+- **Tier-2 batching mandatory** — Phase 1 launches max 3 Tier-1 segment-analysts + 1 Tier-2-batch + 1 domain-expert = 5 agents max (post-Microsoft DD optimization).
+- **Hard search caps** — Tier-1 segment-analyst: 16 WebSearch (down from 22). Tier-2 batch: 12 total. Cap enforcement at 87.5% threshold.
+- **Portfolio agent reads digest only** — no full reads of all segment-*.md (causes timeouts at scale).

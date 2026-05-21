@@ -80,6 +80,17 @@ def text_to_rich_text(text: str) -> list[dict]:
     return [{"type": "text", "text": {"content": chunk}} for chunk in split_text(text)]
 
 
+# URLs that Notion accepts in rich_text "link" objects must be absolute http(s).
+# Relative paths (e.g. [file.md](file.md)) or mailto:/ftp:/ schemes cause
+# 400 "Invalid URL for link" errors and silently drop the surrounding block.
+NOTION_VALID_URL_RE = re.compile(r"^https?://[^\s<>]+$", re.IGNORECASE)
+
+
+def is_valid_notion_url(url: str) -> bool:
+    """Return True iff `url` is safe to pass as a Notion link target."""
+    return bool(url) and bool(NOTION_VALID_URL_RE.match(url.strip()))
+
+
 def parse_inline(text: str) -> list[dict]:
     """Parse inline markdown (bold, italic, code, links) into rich_text."""
     # Simple approach: detect **bold**, *italic*, `code`, [text](url)
@@ -132,8 +143,14 @@ def parse_inline(text: str) -> list[dict]:
             link_m = re.match(r"\[([^\]]+)\]\(([^)]+)\)", raw)
             if link_m:
                 label, url = link_m.group(1), link_m.group(2)
-                for chunk in split_text(label):
-                    result.append({"type": "text", "text": {"content": chunk, "link": {"url": url}}})
+                if is_valid_notion_url(url):
+                    for chunk in split_text(label):
+                        result.append({"type": "text", "text": {"content": chunk, "link": {"url": url}}})
+                else:
+                    # Invalid URL (relative path, broken scheme, etc.) — render label as plain text.
+                    # Notion rejects non-http(s) links with 400 errors that drop whole blocks.
+                    for chunk in split_text(label):
+                        result.append({"type": "text", "text": {"content": chunk}})
 
         pos = m.end()
 
@@ -341,37 +358,96 @@ def page_is_alive(headers: dict, page_id: str) -> bool:
         return False
 
 
-def export_file(headers: dict, parent_page_id: str, filepath: Path,
-                existing_page_id: Optional[str] = None) -> str:
-    """Read a file and upload to Notion. Returns the page_id.
+# Matches markdown links whose target is a local relative path to a .md / .log / .txt file
+# (no scheme, no leading `/`, not a URL). Captures: (label, filename_stem, extension)
+# Examples that match: [bull case](bull-case.md), [log](dd-engagement.log)
+# Examples that DON'T match: [text](https://...), [text](./absolute/path)
+RELATIVE_FILE_LINK_RE = re.compile(
+    r"\[([^\]]+)\]\(([^):/\s]+)\.(md|log|txt)\)",
+    re.IGNORECASE,
+)
 
-    If existing_page_id is provided and the page is alive, UPDATES in place
-    (wipes existing blocks, re-appends) — idempotent. Otherwise creates new.
+
+def rewrite_cross_links(content: str, link_map: Dict[str, str]) -> str:
+    """Rewrite local `[label](file.md)` links to absolute Notion page URLs.
+
+    `link_map` maps file stem (e.g. "bull-case") to a Notion page_id (with or
+    without dashes). Unmatched stems are left untouched so the URL validator
+    can later strip the broken link.
     """
-    print(f"  Exporting: {filepath.name}")
+    if not link_map:
+        return content
 
-    content = filepath.read_text(encoding="utf-8")
-    title = filepath.stem  # filename without extension
+    def _replace(m: re.Match) -> str:
+        label, stem, ext = m.group(1), m.group(2), m.group(3)
+        page_id = link_map.get(stem)
+        if not page_id:
+            return m.group(0)  # leave unchanged
+        # Notion page URLs accept the id with or without dashes
+        clean_id = page_id.replace("-", "")
+        return f"[{label}](https://notion.so/{clean_id})"
 
-    page_id = None
+    return RELATIVE_FILE_LINK_RE.sub(_replace, content)
+
+
+def ensure_page_exists(headers: dict, parent_page_id: str, filepath: Path,
+                      existing_page_id: Optional[str] = None) -> str:
+    """Allocate a Notion page for `filepath` and return its page_id.
+
+    Reuses an existing page if alive; otherwise creates a new empty page.
+    Does NOT append content — that's done by export_file_content().
+    Splitting allocation from content lets us build a full link_map before
+    any content gets uploaded, so cross-file links can be rewritten.
+    """
+    title = filepath.stem
     if existing_page_id and page_is_alive(headers, existing_page_id):
-        page_id = existing_page_id
-        print(f"    Reusing existing page: {title} ({page_id}) — wiping blocks")
-        delete_all_blocks(headers, page_id)
+        print(f"  Allocating: {filepath.name} — reusing existing page {existing_page_id}")
+        return existing_page_id
+    if existing_page_id:
+        print(f"  Allocating: {filepath.name} — saved page {existing_page_id} not alive; creating new")
     else:
-        if existing_page_id:
-            print(f"    Saved page {existing_page_id} not alive; creating new")
-        page_id = create_page(headers, parent_page_id, title)
-        print(f"    Created page: {title} ({page_id})")
+        print(f"  Allocating: {filepath.name} — creating new page")
+    return create_page(headers, parent_page_id, title)
 
-    # Convert to blocks
+
+def export_file_content(headers: dict, page_id: str, filepath: Path,
+                        existing_page_id: Optional[str] = None,
+                        link_map: Optional[Dict[str, str]] = None) -> None:
+    """Read `filepath`, optionally rewrite cross-links, and upload to `page_id`.
+
+    If `page_id` matches an alive prior page, wipes existing blocks first
+    (idempotent re-export). Otherwise just appends.
+    """
+    print(f"  Exporting content: {filepath.name} → {page_id}")
+    content = filepath.read_text(encoding="utf-8")
+
+    # Rewrite local file links to absolute Notion URLs before block conversion.
+    if link_map:
+        content = rewrite_cross_links(content, link_map)
+
+    # If this is a reused page, wipe before appending to keep it idempotent.
+    if existing_page_id == page_id and page_is_alive(headers, page_id):
+        print(f"    Wiping existing blocks (idempotent re-export)")
+        delete_all_blocks(headers, page_id)
+
     blocks = markdown_to_blocks(content)
     print(f"    Blocks: {len(blocks)}, appending...")
-
-    # Append all blocks
     append_blocks(headers, page_id, blocks)
     print(f"    Done: {len(blocks)} blocks uploaded")
 
+
+def export_file(headers: dict, parent_page_id: str, filepath: Path,
+                existing_page_id: Optional[str] = None,
+                link_map: Optional[Dict[str, str]] = None) -> str:
+    """Single-pass file export (back-compat wrapper).
+
+    Equivalent to ensure_page_exists() + export_file_content(). Use the
+    two-step variants directly when you need to build a full link_map across
+    multiple files before any content uploads.
+    """
+    page_id = ensure_page_exists(headers, parent_page_id, filepath, existing_page_id)
+    export_file_content(headers, page_id, filepath, existing_page_id=existing_page_id,
+                        link_map=link_map)
     return page_id
 
 
