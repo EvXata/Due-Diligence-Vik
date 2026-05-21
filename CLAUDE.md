@@ -23,8 +23,11 @@ All agents are defined in `.claude/agents/`, all skills in `.claude/skills/`.
 /dd <company> --deal-type M&A --asking-price $500m
 /dd <company> --deal-type PE --asking-price $2bn --language ru
 /dd <company> --dir research/<existing-bcg-dir>   # use existing BCG output
+/dd <company> --investor-profile retail-token-buyer   # add DD-3c memos for $-amount-driven investor
 ```
 Delivers: **three-layer decision output** (10-sec → 5-min → 45-min) + Value Bridge + Risk Matrix + institutional reference.
+
+The optional `--investor-profile` flag (`vc` | `family-office` | `retail-token-buyer` | `acquirer`) triggers an extra **Phase DD-3c — Investor-Profile Synthesis** that produces three audience-tailored memos: `bull-case.md` (what has to be true to make money), `customer-discovery.md` (DMU + churn analysis), `ma-exit-scenarios.md` (strategic acquirers + liquidation waterfall). All three are derivative (no WebSearch), run in parallel, and are added to the Notion export whitelist. Added after the dYdX (19.05.2026) post-mortem: the four standard decision layers don't answer the typical retail-token / family-office investor question "what does my decision look like as a [profile]?"
 
 **Fast-mode DD short (~15 min, dd-short.md only):**
 ```
@@ -59,7 +62,8 @@ Runs the dd-short fast pipeline for each company in parallel waves (default 10 c
 - Phase DD-2 (parallel): `dd-risk-analyst` + `dd-red-team`
 - Phase DD-3a (parallel): `dd-production-decision-first` + `dd-production` (legal layer)
 - Phase DD-3b: `dd-production-summary` → derives `dd-mid.md` + `dd-short.md` from master
-- Phase DD-4 (MANDATORY): Notion export of the 4 decision layers via `export_to_notion.py` whitelist
+- Phase DD-3c (OPTIONAL, parallel — triggered by `--investor-profile`): `dd-bull-case-writer` + `dd-customer-discovery-synthesizer` + `dd-ma-scenarios-analyst` → `bull-case.md` + `customer-discovery.md` + `ma-exit-scenarios.md`
+- Phase DD-4 (MANDATORY): Notion export of the 4 decision layers (or 7 if DD-3c ran) via `export_to_notion.py` whitelist
 
 **DD output files (three-layer architecture — `dd-output-standard.md` Rule 1):**
 ```
@@ -67,6 +71,11 @@ dd-short.md            ← 10-second decision page (binary signal, ~50 lines)
 dd-mid.md              ← 5-minute pre-meeting briefing (Top-5 issues with So what?)
 dd-decision-first.md   ← Full investment report (45-60 min, IC-grade)  ← PRIMARY
 dd-report.md           ← Institutional / legal reference (legacy format)
+
+Optional investor-profile memos (only when --investor-profile is set):
+bull-case.md             ← What has to be true to make money (4 conditions, conviction-graded allocation)
+customer-discovery.md    ← DMU + churn + win-back per customer segment
+ma-exit-scenarios.md     ← Strategic acquirers, valuation per M&A path, liquidation waterfall
 
 Supporting analysis:
 dd-market-validation.md  ← TAM/CAGR/moat validation (adversarial)
@@ -205,9 +214,14 @@ DD Phases:
                dd-production               → dd-report.md  (legal)    }
   Phase DD-3b  dd-production-summary       → dd-mid.md + dd-short.md
                                             (derived from dd-decision-first.md)
+  Phase DD-3c  dd-bull-case-writer              → bull-case.md            } parallel,
+  (optional)   dd-customer-discovery-synth.     → customer-discovery.md   } only if
+               dd-ma-scenarios-analyst          → ma-exit-scenarios.md    } --investor-profile
+                                                 (Sonnet, no WebSearch, 3-5 min)
   Phase DD-4   notion-export (whitelist)   → 4 Notion pages + 📋 Feedback page
-                                            (MANDATORY — exports only the 4 decision layers,
-                                             not supporting analyses)
+                                            (or 7 pages if DD-3c ran; MANDATORY —
+                                             exports only the decision layers, not
+                                             supporting analyses)
 ```
 
 **dd-decision-first.md is the PRIMARY OUTPUT** — IC-grade, 45-60 min read.
@@ -364,6 +378,11 @@ bcg-audience-scout  → contact-universe.md
 - `.claude/agents/dd-production-decision-first.md` — master decision-first report (applies all 15 rules) → `dd-decision-first.md`
 - `.claude/agents/dd-production-summary.md` — derives `dd-mid.md` + `dd-short.md` from master, strict no-new-numbers rule
 - `.claude/agents/dd-production.md` — institutional/legal layer (legacy format) → `dd-report.md`
+
+**DD Investor-Profile Agents (`Phase DD-3c`, triggered by `--investor-profile`):**
+- `.claude/agents/dd-bull-case-writer.md` — 4-condition bull thesis, conviction-graded allocation table, monitoring tripwires → `bull-case.md`
+- `.claude/agents/dd-customer-discovery-synthesizer.md` — customer segmentation + DMU per segment + churn analysis + win-back opportunities → `customer-discovery.md`
+- `.claude/agents/dd-ma-scenarios-analyst.md` — strategic acquirers + valuation per M&A path + liquidation waterfall + probability-weighted exit value → `ma-exit-scenarios.md`
 
 **DD Fast-Mode Agents (`/dd-short` standalone path):**
 - `.claude/agents/dd-short-fast.md` — light research + 3 killer hypotheses (concentration, unit economics, moat) → `dd-short-base.md`

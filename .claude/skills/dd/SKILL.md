@@ -7,7 +7,7 @@ description: >
   Delivers Investment Verdict (PROCEED / CONDITIONAL / PASS) with Value Bridge and deal conditions.
   Use when: /dd, /due-diligence, "run DD on", "due diligence for", "strategic DD before deal",
   "analyse before acquisition", "PE diligence", "VC diligence".
-argument-hint: <company> [--deal-type M&A|PE|VC|secondary] [--asking-price $Xm] [--dir research/<existing-dir>] [--language en|ru]
+argument-hint: <company> [--deal-type M&A|PE|VC|secondary] [--asking-price $Xm] [--dir research/<existing-dir>] [--language en|ru] [--investor-profile vc|family-office|retail-token-buyer|acquirer]
 disable-model-invocation: true
 ---
 
@@ -166,7 +166,8 @@ H-X1: [Specific claim about absence of hidden deal-breakers]
 - Phase 2 + DD-2 FUSED: portfolio + risk-analyst + red-team (3 parallel, Haiku read-only — no WebSearch)
 - Phase DD-3a: Master decision-first report (solo, Sonnet — still has WebSearch for backfill)
 - Phase DD-3b: Summary + Legal-derive + Insight-Booster (3 parallel, Haiku/Sonnet)
-- Phase DD-4: Notion export
+- Phase DD-3c (OPTIONAL — only when `--investor-profile` set): Bull-Case + Customer-Discovery + M&A-Scenarios (3 parallel, Sonnet)
+- Phase DD-4: Notion export (whitelist extends to 7 files if DD-3c ran)
 
 🚀 Starting...
 ```
@@ -1148,7 +1149,7 @@ Files exported: 4 (dd-short.md, dd-mid.md, dd-decision-first.md, dd-report.md)
 
 ## Step Final — Completion
 
-After Phase DD-3b completes, finalize `dd-engagement.log` — append:
+After Phase DD-3b completes (and DD-3c if `--investor-profile` was set), finalize `dd-engagement.log` — append:
 ```markdown
 ## Engagement Complete
 Status: ✅ COMPLETED
@@ -1159,7 +1160,10 @@ Deal Score: [X.X] / 10
 Fair Value Range: $[Xm] — $[Xm]
 Deal Breakers: [N]
 Hypothesis Score: [N confirmed / N uncertain / N refuted]
-Files generated: 4 (dd-short.md, dd-mid.md, dd-decision-first.md, dd-report.md)
+Files generated: [4 standard OR 7 with investor-profile]
+  Standard:           dd-short.md, dd-mid.md, dd-decision-first.md, dd-report.md
+  [If DD-3c ran:]     bull-case.md, customer-discovery.md, ma-exit-scenarios.md
+Investor profile:     [profile or "not set"]
 ```
 
 Output to user:
@@ -1187,6 +1191,12 @@ Confidence: [X]% ([interpretation])  ·  Deal Score: [X.X]/10
    3. dd-decision-first.md    ← Full investment report (45–60 min)  ← PRIMARY
    4. dd-report.md            ← Institutional / legal reference
 
+[If --investor-profile was set, DD-3c memos:]
+   Investor-profile memos ([profile]):
+   ├── bull-case.md            ← What has to be true to make money
+   ├── customer-discovery.md   ← DMU + churn + win-back per segment
+   └── ma-exit-scenarios.md    ← Strategic acquirers + liquidation waterfall
+
    Supporting analysis:
    ├── dd-market-validation.md ← Market claims validation
    ├── dd-hypothesis-report.md ← 10 hypothesis test results
@@ -1201,6 +1211,10 @@ Confidence: [X]% ([interpretation])  ·  Deal Score: [X.X]/10
    ├── dd-mid              ← uploaded
    ├── dd-decision-first   ← uploaded
    ├── dd-report           ← uploaded
+[If --investor-profile was set:]
+   ├── bull-case           ← uploaded
+   ├── customer-discovery  ← uploaded
+   ├── ma-exit-scenarios   ← uploaded
    └── 📋 Feedback         ← for client comments
 
 [If NOTION_URL is empty (export failed):]
