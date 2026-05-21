@@ -55,6 +55,11 @@ NOTION_VERSION = "2022-06-28"
 MAX_BLOCKS_PER_REQUEST = 100
 MAX_RICH_TEXT_LENGTH = 2000
 
+# Engagement cover layout version. Bump when block schema (count or types) changes;
+# bump triggers delete+recreate of the cover on next export (lands at end of page —
+# one-time degradation). PATCH-in-place is used when version matches.
+COVER_VERSION = "v1"
+
 
 def get_headers(token: str) -> dict:
     return {
@@ -405,19 +410,23 @@ def ensure_page_exists(headers: dict, parent_page_id: str, filepath: Path,
 
     `was_reused=True` means we successfully verified the existing_page_id is
     alive — the caller can SKIP a second page_is_alive() check before wipe.
+    Reused pages also get their title refreshed to the current pretty-title
+    map (best-effort), so renames flow through on re-export.
     `was_reused=False` means we created a fresh page (no wipe needed).
 
     Splitting allocation from content lets us build a full link_map before
     any content gets uploaded, so cross-file links can be rewritten.
     """
-    title = filepath.stem
+    title = pretty_title_for(filepath)
     if existing_page_id and page_is_alive(headers, existing_page_id):
-        print(f"  Allocating: {filepath.name} — reusing existing page {existing_page_id}")
+        print(f"  Allocating: {filepath.name} — reusing existing page {existing_page_id} (title='{title}')")
+        # Keep title in sync (cheap; tolerates older exports that used bare stems)
+        _update_page_title(headers, existing_page_id, title)
         return existing_page_id, True
     if existing_page_id:
         print(f"  Allocating: {filepath.name} — saved page {existing_page_id} not alive; creating new")
     else:
-        print(f"  Allocating: {filepath.name} — creating new page")
+        print(f"  Allocating: {filepath.name} — creating new page (title='{title}')")
     return create_page(headers, parent_page_id, title), False
 
 
@@ -555,15 +564,828 @@ def create_feedback_page(headers: dict, parent_page_id: str) -> str:
     return page_id
 
 
-def save_notion_meta(research_dir: Path, mapping: dict, feedback_page_id: str, engagement_page_id: str) -> None:
+# ============================================================================
+# Engagement cover page — MBB-style first-page index
+# ============================================================================
+#
+# The engagement parent page in Notion gets an MBB-cover-deck-style index at
+# the top: verdict callout, key numbers, reading guide with links to each
+# decision layer, supporting analysis links, foundations links, methodology
+# footer. The cover is built from data extracted from dd-short.md (or
+# dd-decision-first.md as fallback) plus the link_map (file stem → page_id)
+# built during Pass 1.
+#
+# Two-step placement for top-of-page positioning:
+#   1. pre_create_cover_skeleton — runs BEFORE Pass 1 if no prior cover IDs
+#      exist; appends placeholder skeleton to the (empty) engagement page so
+#      it lands at the TOP. Subsequent child_page blocks from Pass 1 append
+#      below the cover.
+#   2. update_cover — runs AFTER Pass 2 + feedback page creation; PATCHes
+#      each saved cover block in place with real content (positions preserved).
+#      On version/count mismatch or dead blocks → delete + recreate (lands at
+#      end of page on re-runs; one-time degradation, logged as warning).
+#
+# State persisted in notion-feedback.json:
+#   cover_block_ids: [<id>, <id>, ...]  — in layout order
+#   cover_version:   "v1"
+# ============================================================================
+
+
+def _page_url(page_id: str) -> str:
+    """Convert page_id (with or without dashes) to absolute notion.so URL."""
+    return f"https://notion.so/{page_id.replace('-', '')}"
+
+
+def _text(content: str, **annot) -> dict:
+    """Build a Notion rich_text 'text' element with optional annotations."""
+    obj = {"type": "text", "text": {"content": content}}
+    if annot:
+        obj["annotations"] = annot
+    return obj
+
+
+def _link(label: str, url: str, **annot) -> dict:
+    """Build a Notion rich_text 'text' element with a hyperlink."""
+    obj = {"type": "text", "text": {"content": label, "link": {"url": url}}}
+    if annot:
+        obj["annotations"] = annot
+    return obj
+
+
+def _h1(title: str) -> dict:
+    return {"object": "block", "type": "heading_1",
+            "heading_1": {"rich_text": [_text(title)]}}
+
+
+def _h2(title: str) -> dict:
+    return {"object": "block", "type": "heading_2",
+            "heading_2": {"rich_text": [_text(title)]}}
+
+
+def _para(rich) -> dict:
+    if isinstance(rich, str):
+        rich = [_text(rich)]
+    return {"object": "block", "type": "paragraph",
+            "paragraph": {"rich_text": rich}}
+
+
+def _bullet(rich) -> dict:
+    if isinstance(rich, str):
+        rich = [_text(rich)]
+    return {"object": "block", "type": "bulleted_list_item",
+            "bulleted_list_item": {"rich_text": rich}}
+
+
+def _callout(rich, emoji: str, color: str) -> dict:
+    if isinstance(rich, str):
+        rich = [_text(rich)]
+    return {"object": "block", "type": "callout",
+            "callout": {"rich_text": rich,
+                        "icon": {"type": "emoji", "emoji": emoji},
+                        "color": color}}
+
+
+def _divider() -> dict:
+    return {"object": "block", "type": "divider", "divider": {}}
+
+
+# Title-pattern → file stem reverse map for normalizing legacy "pretty title"
+# mappings (e.g. from older exports where keys were "⚡ 5. Bull Case (...)").
+# Order matters: most-specific (literal stems) FIRST, human-readable phrases
+# AFTER. Each entry is (compiled_regex, stem). The first match wins.
+_LEGACY_TITLE_PATTERNS = [
+    # Literal stems — match these first to win over phrases below.
+    (re.compile(r"\bdd-decision-first\b", re.IGNORECASE), "dd-decision-first"),
+    (re.compile(r"\bdd-short\b", re.IGNORECASE),          "dd-short"),
+    (re.compile(r"\bdd-mid\b", re.IGNORECASE),            "dd-mid"),
+    (re.compile(r"\bdd-report\b", re.IGNORECASE),         "dd-report"),
+    (re.compile(r"\bbull-case\b", re.IGNORECASE),         "bull-case"),
+    (re.compile(r"\bcustomer-discovery\b", re.IGNORECASE), "customer-discovery"),
+    (re.compile(r"\bma-exit-scenarios\b", re.IGNORECASE), "ma-exit-scenarios"),
+    (re.compile(r"\bdd-red-team\b", re.IGNORECASE),       "dd-red-team"),
+    (re.compile(r"\bdd-risk-matrix\b", re.IGNORECASE),    "dd-risk-matrix"),
+    (re.compile(r"\bdd-hypothesis-report\b", re.IGNORECASE), "dd-hypothesis-report"),
+    (re.compile(r"\bdd-market-validation\b", re.IGNORECASE), "dd-market-validation"),
+    (re.compile(r"\bcompany-brief\b", re.IGNORECASE),     "company-brief"),
+    (re.compile(r"\bmarket-map\b", re.IGNORECASE),        "market-map"),
+    (re.compile(r"\bportfolio\b", re.IGNORECASE),         "portfolio"),
+    (re.compile(r"\badvanced-analytics\b", re.IGNORECASE), "advanced-analytics"),
+    (re.compile(r"\bdomain-expert-input\b", re.IGNORECASE), "domain-expert-input"),
+    (re.compile(r"\bvalidation-report\b", re.IGNORECASE),  "validation-report"),
+    (re.compile(r"\bfinal-report\b", re.IGNORECASE),       "final-report"),
+    (re.compile(r"\bgtm-playbook\b", re.IGNORECASE),       "gtm-playbook"),
+    (re.compile(r"\bcreative-brief\b", re.IGNORECASE),     "creative-brief"),
+    (re.compile(r"\bcontact-universe\b", re.IGNORECASE),   "contact-universe"),
+    # Human-readable phrases (used by older exports — case-insensitive).
+    (re.compile(r"\bbull\s+case\b", re.IGNORECASE),                     "bull-case"),
+    (re.compile(r"\bcustomer\s+discovery\b", re.IGNORECASE),            "customer-discovery"),
+    (re.compile(r"\b(?:m&a|m\s*&\s*a|exit\s+scenarios?)\b", re.IGNORECASE), "ma-exit-scenarios"),
+    (re.compile(r"\b(?:bear\s+case|red\s+team)\b", re.IGNORECASE),      "dd-red-team"),
+    (re.compile(r"\brisk\s+matrix\b", re.IGNORECASE),                   "dd-risk-matrix"),
+    (re.compile(r"\bhypothesis\b|\bscorecard\b", re.IGNORECASE),        "dd-hypothesis-report"),
+    (re.compile(r"\b(?:moat\s*x.?ray|vrio|market\s+validation)\b", re.IGNORECASE), "dd-market-validation"),
+    (re.compile(r"\bcompany\s+brief\b", re.IGNORECASE),                 "company-brief"),
+    (re.compile(r"\bmarket\s+map(?:ping)?\b", re.IGNORECASE),           "market-map"),
+    (re.compile(r"\badvanced\s+analytics\b", re.IGNORECASE),            "advanced-analytics"),
+    (re.compile(r"\bdomain\s+expert\b", re.IGNORECASE),                 "domain-expert-input"),
+    (re.compile(r"\b(?:validation\s+report|fact.?check\s+audit)\b", re.IGNORECASE), "validation-report"),
+    (re.compile(r"\bportfolio\s+strategy\b", re.IGNORECASE),            "portfolio"),
+    (re.compile(r"\bfinal\s+report\b", re.IGNORECASE),                  "final-report"),
+    (re.compile(r"\bgtm\s+playbook\b", re.IGNORECASE),                  "gtm-playbook"),
+    (re.compile(r"\bcreative\s+brief\b", re.IGNORECASE),                "creative-brief"),
+    (re.compile(r"\bcontact\s+universe\b", re.IGNORECASE),              "contact-universe"),
+    # Decision layers — human form
+    (re.compile(r"\bdecision[- ]first\b", re.IGNORECASE),               "dd-decision-first"),
+    (re.compile(r"\binstitutional[/ ]\s*legal\b", re.IGNORECASE),       "dd-report"),
+    # Segments
+    (re.compile(r"\bsegment[-_\s]+([a-z0-9-]+)\b", re.IGNORECASE),      "_segment_dynamic_"),
+]
+
+
+def _stem_from_legacy_title(title: str) -> Optional[str]:
+    """Return the file stem implied by a legacy 'pretty title', or None."""
+    for pat, stem in _LEGACY_TITLE_PATTERNS:
+        m = pat.search(title)
+        if not m:
+            continue
+        if stem == "_segment_dynamic_":
+            return f"segment-{m.group(1).lower()}"
+        return stem
+    return None
+
+
+def normalize_mapping(prior_mapping_raw: dict) -> dict:
+    """Convert legacy 'pretty title' keyed entries to stem-keyed entries.
+
+    Old exports (pre-v1 cover) used decorated keys like:
+        "⚡ 1. dd-short (10-second decision)": "<page_id>"
+        "🚀 5. Bull Case ($2M upside scenarios)":  "<page_id>"
+    Current schema is:
+        "dd-short": {"page_id": "<id>", "sha256": "<hex>"}
+
+    Detects schema, upgrades legacy entries by reverse-mapping pretty titles
+    back to stems (`_stem_from_legacy_title`). Already-normalized entries
+    pass through unchanged. Unknown titles (e.g. INDEX) are skipped silently.
+    """
+    if not prior_mapping_raw:
+        return {}
+
+    # Heuristic: if every key looks like a file-stem token, mapping is current.
+    stem_token = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+    if all(stem_token.match(k) for k in prior_mapping_raw):
+        return prior_mapping_raw
+
+    upgraded: Dict = {}
+    skipped = []
+    for k, v in prior_mapping_raw.items():
+        if stem_token.match(k):
+            upgraded[k] = v
+            continue
+        stem = _stem_from_legacy_title(k)
+        if not stem:
+            skipped.append(k)
+            continue
+        if stem in upgraded:
+            continue  # first wins
+        if isinstance(v, str):
+            upgraded[stem] = {"page_id": v, "sha256": None}
+        elif isinstance(v, dict):
+            upgraded[stem] = v
+    if upgraded:
+        print(f"  Normalized legacy mapping: {len(prior_mapping_raw)} entries → "
+              f"{len(upgraded)} stem-keyed" + (f" (skipped {len(skipped)})" if skipped else ""))
+    return upgraded
+
+
+def parse_engagement_metadata(research_dir: Path) -> dict:
+    """Extract company name, date, fast-mode flag from research_dir name.
+
+    Examples:
+        dydx-19.05.2026          → company="DYDX",      date="19.05.2026"
+        microsoft-21.05.2026-fast → company="Microsoft", date="21.05.2026", is_fast=True
+        tsmc-30.03.2026          → company="TSMC",      date="30.03.2026"
+    """
+    name = research_dir.name
+    is_fast = name.endswith("-fast")
+    stripped = name[:-5] if is_fast else name
+    parts = stripped.split("-", 1)
+    company_raw = parts[0]
+    company = company_raw.upper() if len(company_raw) <= 4 else company_raw.capitalize()
+    date_part = parts[1] if len(parts) > 1 else ""
+    return {"company": company, "date": date_part, "is_fast": is_fast}
+
+
+def detect_engagement_type(files: list) -> str:
+    """Return 'dd' if DD artefacts present, 'bcg' if BCG-only, 'generic' otherwise."""
+    names = {f.name for f in files}
+    if "dd-decision-first.md" in names or "dd-short.md" in names:
+        return "dd"
+    if any(n in names for n in ("final-report.md", "portfolio.md", "gtm-playbook.md")):
+        return "bcg"
+    return "generic"
+
+
+def extract_dd_verdict(research_dir: Path) -> dict:
+    """Parse dd-short.md (or dd-decision-first.md as fallback) for headline data.
+
+    Defensive — every field is optional. Caller renders '—' when missing.
+    Supports both English and Russian dd-short variants.
+    """
+    out = {
+        "verdict": None,            # PASS / PROCEED / CONDITIONAL PROCEED / CONDITIONAL PASS
+        "headline": None,           # 1-2 sentence summary
+        "fair_value": None,         # e.g. "$29M–$85M"
+        "asking": None,             # e.g. "$120M"
+        "gap": None,                # e.g. "-59%"
+        "confidence": None,         # e.g. "82%"
+        "hypothesis_breakdown": None,  # e.g. "1✅ / 5⚠️ / 4❌"
+        "top_risks": [],            # list of short risk strings (max 3)
+    }
+    src = None
+    for name in ("dd-short.md", "dd-decision-first.md"):
+        p = research_dir / name
+        if p.exists():
+            src = p
+            break
+    if not src:
+        return out
+    body = src.read_text(encoding="utf-8")
+
+    # Verdict — try multiple patterns (markdown table, bullet, plain label)
+    for pat in [
+        r"(?:Вердикт|Verdict|Recommendation|Decision)\s*[:|]\s*\**\s*(PASS|PROCEED|CONDITIONAL\s+PROCEED|CONDITIONAL\s+PASS)\b",
+        r"\*\*(PASS|PROCEED|CONDITIONAL\s+PROCEED|CONDITIONAL\s+PASS)\*\*",
+    ]:
+        m = re.search(pat, body, re.IGNORECASE)
+        if m:
+            out["verdict"] = re.sub(r"\s+", " ", m.group(1).upper())
+            break
+
+    # Confidence
+    m = re.search(r"(?:Confidence|Уверенность)\s*[:|]\s*\**\s*(\d+\s*%?)", body, re.IGNORECASE)
+    if m:
+        c = m.group(1).strip()
+        if not c.endswith("%"):
+            c += "%"
+        out["confidence"] = c
+
+    # Hypothesis breakdown — looks for "X✅ / Y⚠️ / Z❌" pattern
+    m = re.search(r"(\d+)\s*[✅✓]\s*[/\\]\s*(\d+)\s*[⚠️🟡]\s*[/\\]\s*(\d+)\s*[❌✗]", body)
+    if m:
+        out["hypothesis_breakdown"] = f"{m.group(1)}✅ / {m.group(2)}⚠️ / {m.group(3)}❌"
+
+    # Fair value
+    for pat in [
+        r"(?:Probability-weighted\s+fair\s+value|Fair\s+value|Справедливая\s+стоимость)\s*[:|]\s*\**\s*(\$[\d.,]+\s*[BMK]?\s*[–—\-]\s*\$[\d.,]+\s*[BMK]?)",
+        r"(?:Fair\s+value|Справедливая\s+стоимость)\s*[:|]\s*\**\s*(\$[\d.,]+\s*[BMK]?)",
+    ]:
+        m = re.search(pat, body, re.IGNORECASE)
+        if m:
+            out["fair_value"] = m.group(1).strip()
+            break
+
+    # Asking
+    for pat in [
+        r"\$(\d[\d.,]*\s*[BMK]?)\s*MCap\s*(?:вход|asking)",
+        r"(?:Asking|Asking\s+price)\s*[:|]\s*\**\s*(\$[\d.,]+\s*[BMK]?)",
+        r"vs\s+(\$[\d.,]+\s*[BMK]?)\s*(?:asking|MCap\s*asking|запрашиваемой)",
+    ]:
+        m = re.search(pat, body, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            if not val.startswith("$"):
+                val = f"${val}"
+            out["asking"] = val
+            break
+
+    # Gap — explicit field, or % at end of fair value line
+    for pat in [
+        r"(?:Gap|Premium|Discount|Дисконт|Премия)\s*[:|]\s*\**\s*([-+]\d+\s*%)",
+        r"Range[:|]\s*[-+]?\d+%[^()\n]*?\(([-+]?\d+%)\s*(?:база|base)?\)",
+        r"Диапазон[^\n]*?:\s*([-+]\d+%)\s*\(база",
+    ]:
+        m = re.search(pat, body, re.IGNORECASE)
+        if m:
+            out["gap"] = m.group(1).replace(" ", "")
+            break
+
+    # Headline — first non-trivial paragraph after the verdict line
+    if out["verdict"]:
+        # Look for a bolded one-liner near the top
+        head_m = re.search(r"\*\*Вы платите .+?\*\*\n+(.+?)(?=\n\n|\n---|$)", body, re.DOTALL)
+        if not head_m:
+            head_m = re.search(r"^(?:###?\s+(?:Headline|Bottom\s+line|Recommendation))[^\n]*\n+(.+?)(?=\n#{1,3}\s|\n---|\Z)",
+                               body, re.MULTILINE | re.IGNORECASE | re.DOTALL)
+        if head_m:
+            txt = head_m.group(1).strip()
+            txt = re.sub(r"\*\*?(.+?)\*\*?", r"\1", txt)
+            txt = " ".join(txt.split())
+            if len(txt) > 280:
+                txt = txt[:280].rsplit(" ", 1)[0] + "…"
+            if txt:
+                out["headline"] = txt
+
+    # Top risks — first 3 list items in a "Top Risks" / "Самый большой риск" / "Deal Breakers" section
+    risk_section_m = re.search(
+        r"(?:#{1,4}\s*)?(?:Top\s+\d*\s*Risks?|Самый\s+большой\s+риск|Key\s+Risks?|Critical\s+Risks?|Deal\s+Breakers|Эта\s+сделка\s+разрушится)[^\n]*\n+(.+?)(?=\n#{1,3}\s|\n---|\Z)",
+        body, re.IGNORECASE | re.DOTALL)
+    if risk_section_m:
+        block = risk_section_m.group(1)
+        # Match bullets / numbered items / arrow-prefixed lines
+        items = re.findall(
+            r"^(?:\s*[\-\*•→]|\s*\d+\.)\s+(.+?)(?=\n(?:\s*[\-\*•→]|\s*\d+\.|\n\n)|\Z)",
+            block, re.MULTILINE | re.DOTALL)
+        for item in items[:3]:
+            cleaned = re.sub(r"\*\*?(.+?)\*\*?", r"\1", item)
+            cleaned = " ".join(cleaned.split())
+            if len(cleaned) > 240:
+                cleaned = cleaned[:240].rsplit(" ", 1)[0] + "…"
+            if cleaned:
+                out["top_risks"].append(cleaned)
+
+    return out
+
+
+# Pretty title mapping for sub-pages. Restores the MBB-engagement convention
+# used in earlier exports (e.g. dydx-19.05.2026): each child page in Notion
+# gets an emoji-prefixed, human-readable title instead of the bare file stem.
+_PRETTY_TITLES = {
+    # Phase DD-3a/b — Decision layers
+    "dd-short":          "⚡ dd-short — Decision (10 sec)",
+    "dd-mid":            "📋 dd-mid — Briefing (5 min)",
+    "dd-decision-first": "📕 dd-decision-first — PRIMARY (45-60 min)",
+    "dd-report":         "📑 dd-report — Institutional reference",
+    # Phase DD-3c — Investor profile
+    "bull-case":         "🚀 Bull Case — Upside conditions",
+    "customer-discovery": "👥 Customer Discovery — DMU + churn",
+    "ma-exit-scenarios": "🤝 M&A / Exit Scenarios",
+    # Phase DD-1 / DD-2 — Supporting analysis
+    "dd-market-validation": "🏰 Market Validation / Moat X-Ray",
+    "dd-hypothesis-report": "📁 Hypothesis Scorecard",
+    "dd-risk-matrix":    "🚨 Risk Matrix",
+    "dd-red-team":       "🐻 Red Team / Bear Case",
+    # Foundations (BCG + DD shared)
+    "company-brief":     "📁 Company Brief",
+    "market-map":        "🗺️ Market Map",
+    "portfolio":         "📊 Portfolio Strategy",
+    "advanced-analytics": "📁 Advanced Analytics",
+    "domain-expert-input": "📁 Domain Expert Input",
+    "validation-report": "📁 Validation Report",
+    # BCG-only
+    "final-report":      "📕 Final Report",
+    "gtm-playbook":      "🎯 GTM Playbook",
+    "creative-brief":    "💡 Creative Brief",
+    "contact-universe":  "👥 Contact Universe",
+}
+
+
+def pretty_title_for(filepath: Path) -> str:
+    """Return MBB-styled Notion page title for a file. Falls back to stem."""
+    stem = filepath.stem
+    if stem in _PRETTY_TITLES:
+        return _PRETTY_TITLES[stem]
+    if stem.startswith("segment-"):
+        seg = stem.replace("segment-", "").replace("-", " ").title()
+        return f"💼 Segment — {seg}"
+    return stem
+
+
+# Verdict → (emoji, callout background color) mapping
+_VERDICT_STYLE = {
+    "PASS":                ("❌", "red_background"),
+    "PROCEED":             ("✅", "green_background"),
+    "CONDITIONAL PROCEED": ("⚠️", "yellow_background"),
+    "CONDITIONAL PASS":    ("⚠️", "orange_background"),
+}
+
+
+def build_dd_cover_blocks(meta: dict, verdict_data: dict, link_map: Dict[str, str],
+                          feedback_page_id: Optional[str]) -> list:
+    """Build the fixed 38-block DD cover (matches the approved demo layout).
+
+    Block count is constant — missing data renders as placeholder text so PATCH
+    in place works on re-runs without structural drift.
+    """
+    company = meta.get("company", "?")
+    date_str = meta.get("date", "")
+    is_fast = meta.get("is_fast", False)
+
+    sub = {k: _page_url(v) for k, v in (link_map or {}).items()}
+    fb_url = _page_url(feedback_page_id) if feedback_page_id else None
+
+    verdict = verdict_data.get("verdict") or "VERDICT PENDING"
+    icon, color = _VERDICT_STYLE.get(verdict, ("📋", "gray_background"))
+    headline = verdict_data.get("headline") or "See dd-decision-first.md for the full investment thesis."
+
+    blocks = []
+
+    # 1. Title
+    title = f"{company} — Strategic Due Diligence"
+    if is_fast:
+        title += "  ⚡"
+    blocks.append(_h1(title))
+
+    # 2. Metadata
+    meta_parts = []
+    if date_str:
+        meta_parts.append(f"Дата: {date_str}")
+    meta_parts.append("Подготовлено: Xata&Co Strategic DD Team")
+    blocks.append(_para([_text("  ·  ".join(meta_parts), italic=True, color="gray")]))
+
+    # 3. Verdict callout
+    blocks.append(_callout(
+        [_text(f"{verdict}\n", bold=True), _text(headline)],
+        emoji=icon, color=color))
+
+    # 4. Divider
+    blocks.append(_divider())
+
+    # 5. Reading Guide H2
+    blocks.append(_h2("Reading Guide"))
+
+    # 6. Intro paragraph
+    blocks.append(_para([_text("Выберите слой по доступному времени.", italic=True, color="gray")]))
+
+    # 7-10. Reading guide bullets (4 layers, fixed)
+    layers = [
+        ("dd-short",          "🕐 10 sec   →  ", "⚡ dd-short",          "  ·  бинарное решение, fair value gap"),
+        ("dd-mid",            "🕔 5 min     →  ", "📋 dd-mid",           "  ·  pre-meeting briefing, top-5 issues"),
+        ("dd-decision-first", "🕓 45 min   →  ", "📕 dd-decision-first", "  ·  PRIMARY — IC-grade master report"),
+        ("dd-report",         "📑 Reference →  ", "dd-report",           "  ·  institutional / legal format"),
+    ]
+    for stem, prefix, label, suffix in layers:
+        url = sub.get(stem)
+        if url:
+            rt = [_text(prefix, color="gray"), _link(label, url, bold=True),
+                  _text(suffix, color="gray")]
+        else:
+            rt = [_text(prefix, color="gray"), _text(label, bold=True, color="gray"),
+                  _text(f"{suffix}  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 11. Divider
+    blocks.append(_divider())
+
+    # 12. Key Numbers H2
+    blocks.append(_h2("Key Numbers"))
+
+    # 13. Key Numbers paragraph
+    fv = verdict_data.get("fair_value") or "—"
+    ask = verdict_data.get("asking") or "—"
+    gap = verdict_data.get("gap") or "—"
+    conf = verdict_data.get("confidence") or "—"
+    hyp = verdict_data.get("hypothesis_breakdown") or "—"
+    gap_color = "red" if gap.startswith("-") else ("green" if gap not in ("—", "0%") and gap.startswith("+") else "default")
+    blocks.append(_para([
+        _text("Fair value: ", color="gray"), _text(fv, bold=True),
+        _text("  ·  Asking: ", color="gray"), _text(ask, bold=True),
+        _text("  ·  Gap: ", color="gray"), _text(gap, bold=True, color=gap_color),
+        _text("  ·  Confidence: ", color="gray"), _text(conf, bold=True),
+        _text("  ·  Hypotheses: ", color="gray"), _text(hyp, bold=True),
+    ]))
+
+    # 14. Divider
+    blocks.append(_divider())
+
+    # 15. Top Risks H2
+    blocks.append(_h2("Top Risks (Critical / High)"))
+
+    # 16-18. 3 risk slots (fixed — fill with "—" when fewer)
+    risks = verdict_data.get("top_risks", [])
+    for i in range(3):
+        if i < len(risks):
+            rt = [_text("🔴  ", color="red"), _text(risks[i])]
+        else:
+            rt = [_text("—", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 19. Divider
+    blocks.append(_divider())
+
+    # 20. Supporting Analysis H2
+    blocks.append(_h2("Supporting Analysis"))
+
+    # 21-24. Supporting bullets (4 fixed)
+    support = [
+        ("dd-market-validation", "🏰  Market Validation / Moat X-Ray", "TAM stress-test, VRIO scorecard, competitive moat"),
+        ("dd-hypothesis-report", "📁  Hypothesis Scorecard",            "10 deal-specific hypotheses tested ✅/⚠️/❌"),
+        ("dd-risk-matrix",       "🚨  Risk Matrix",                     "P×I scoring, deal breakers, exit triggers"),
+        ("dd-red-team",          "🐻  Red Team / Bear Case",            "bear thesis, stress scenarios, pre-mortem"),
+    ]
+    for stem, label, desc in support:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 25. Divider
+    blocks.append(_divider())
+
+    # 26. Investor-Profile Memos H2
+    blocks.append(_h2("Investor-Profile Memos"))
+
+    # 27-29. Investor profile bullets (3 fixed)
+    profile = [
+        ("bull-case",         "🚀  Bull Case",            "4 conditions for upside, conviction-graded allocation"),
+        ("customer-discovery", "👥  Customer Discovery",  "DMU per segment + churn + win-back roadmap"),
+        ("ma-exit-scenarios", "🤝  M&A / Exit Scenarios", "strategic acquirers, valuation per path, liquidation waterfall"),
+    ]
+    for stem, label, desc in profile:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated for this engagement)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 30. Divider
+    blocks.append(_divider())
+
+    # 31. Foundations H2
+    blocks.append(_h2("Foundations"))
+
+    # 32-35. Foundations bullets (4 fixed)
+    foundations = [
+        ("company-brief",      "📁  Company Brief",       "verified raw data — SEC, news, LinkedIn"),
+        ("market-map",         "🗺️  Market Map",          "segment definitions, competitor universe"),
+        ("portfolio",          "📊  Portfolio Strategy",  "MBB Growth-Share Matrix, Selection Lens"),
+        ("advanced-analytics", "📁  Advanced Analytics",  "DCF, peer multiples, scenarios"),
+    ]
+    for stem, label, desc in foundations:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 36. Divider
+    blocks.append(_divider())
+
+    # 37. Methodology footer
+    blocks.append(_callout([
+        _text("Confidential — ", bold=True),
+        _text("Methodology: BCG 5 Lenses (Description → Advantage → Future → Options → Selection)"
+              "  ·  Decision-First Output Standard (15 rules)  ·  Pyramid Principle"),
+    ], emoji="🔒", color="gray_background"))
+
+    # 38. Feedback link paragraph
+    fb_rt = [_text("Use the ", italic=True, color="gray")]
+    if fb_url:
+        fb_rt.append(_link("📋 Feedback page", fb_url, bold=True, italic=True, color="gray"))
+    else:
+        fb_rt.append(_text("📋 Feedback page", bold=True, italic=True, color="gray"))
+    fb_rt.append(_text(" to send corrections — processed within 1 hour by the analytics team.",
+                       italic=True, color="gray"))
+    blocks.append(_para(fb_rt))
+
+    return blocks
+
+
+def build_bcg_cover_blocks(meta: dict, link_map: Dict[str, str],
+                           feedback_page_id: Optional[str]) -> list:
+    """Build the fixed BCG-mode cover (28 blocks). Used when no DD artefacts present."""
+    company = meta.get("company", "?")
+    date_str = meta.get("date", "")
+    sub = {k: _page_url(v) for k, v in (link_map or {}).items()}
+    fb_url = _page_url(feedback_page_id) if feedback_page_id else None
+
+    blocks = []
+
+    # 1. Title
+    blocks.append(_h1(f"{company} — Strategic Analysis"))
+
+    # 2. Metadata
+    meta_parts = []
+    if date_str:
+        meta_parts.append(f"Дата: {date_str}")
+    meta_parts.append("Подготовлено: Xata&Co Strategy Team")
+    blocks.append(_para([_text("  ·  ".join(meta_parts), italic=True, color="gray")]))
+
+    # 3. Mode callout
+    blocks.append(_callout(
+        [_text("MBB Strategic Engagement\n", bold=True),
+         _text("Portfolio review · Segment-level strategy · GTM operationalization")],
+        emoji="📊", color="blue_background"))
+
+    # 4. Divider
+    blocks.append(_divider())
+
+    # 5. Primary Deliverables H2
+    blocks.append(_h2("Primary Deliverables"))
+
+    # 6-9. Primary bullets (4 fixed)
+    primary = [
+        ("final-report",  "📕  Final Report",       "Pyramid-principle synthesis — 45 min IC-grade read"),
+        ("portfolio",     "📊  Portfolio Strategy", "MBB Growth-Share Matrix, Selection Lens"),
+        ("gtm-playbook",  "🎯  GTM Playbook",       "ICP / DMU / Channels / Pipeline model"),
+        ("market-map",    "🗺️  Market Map",         "Segment definitions, competitor universe"),
+    ]
+    for stem, label, desc in primary:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 10. Divider
+    blocks.append(_divider())
+
+    # 11. Foundations H2
+    blocks.append(_h2("Foundations"))
+
+    # 12-17. Foundations bullets (6 fixed)
+    foundations = [
+        ("company-brief",       "📁  Company Brief",       "Single source of truth — verified raw data"),
+        ("advanced-analytics",  "📁  Advanced Analytics",  "Bottom-up sizing, growth forecasts, benchmarks"),
+        ("domain-expert-input", "📁  Domain Expert Input", "Insider hypothesis validation"),
+        ("validation-report",   "📁  Validation Report",   "Fact-check audit, source verification"),
+        ("contact-universe",    "👥  Contact Universe",    "Decision-maker map"),
+        ("creative-brief",      "💡  Creative Brief",      "Outreach & messaging strategy"),
+    ]
+    for stem, label, desc in foundations:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 18. Divider
+    blocks.append(_divider())
+
+    # 19. Methodology footer
+    blocks.append(_callout([
+        _text("Confidential — ", bold=True),
+        _text("Methodology: BCG 5 Lenses (Description / Advantage / Future / Options / Selection)"
+              "  ·  Pyramid Principle  ·  Segmentation by adjacent-segment independence"),
+    ], emoji="🔒", color="gray_background"))
+
+    # 20. Feedback link
+    fb_rt = [_text("Use the ", italic=True, color="gray")]
+    if fb_url:
+        fb_rt.append(_link("📋 Feedback page", fb_url, bold=True, italic=True, color="gray"))
+    else:
+        fb_rt.append(_text("📋 Feedback page", bold=True, italic=True, color="gray"))
+    fb_rt.append(_text(" to send corrections — processed within 1 hour.",
+                       italic=True, color="gray"))
+    blocks.append(_para(fb_rt))
+
+    return blocks
+
+
+def build_cover_blocks_for(engagement_type: str, meta: dict, verdict_data: dict,
+                            link_map: Dict[str, str], feedback_page_id: Optional[str]) -> list:
+    """Dispatch to the right cover builder based on engagement type."""
+    if engagement_type == "dd":
+        return build_dd_cover_blocks(meta, verdict_data, link_map, feedback_page_id)
+    if engagement_type == "bcg":
+        return build_bcg_cover_blocks(meta, link_map, feedback_page_id)
+    # Generic fallback — reuse BCG layout (minimal harm if some links are missing)
+    return build_bcg_cover_blocks(meta, link_map, feedback_page_id)
+
+
+def _cover_block_alive(headers: dict, block_id: str) -> bool:
+    """Check whether a Notion block is still alive (not archived/deleted)."""
+    try:
+        resp = api_request("GET", f"{NOTION_API}/blocks/{block_id}", headers)
+        return not resp.get("archived", False)
+    except Exception:
+        return False
+
+
+def pre_create_cover_skeleton(headers: dict, engagement_page_id: str,
+                              cover_blocks: list, prior_cover_state: Optional[dict]) -> dict:
+    """If no prior cover IDs exist, append the cover at the TOP of the engagement page.
+
+    Must be called BEFORE Pass 1 (subpage allocation) on first export so the cover
+    blocks land before any child_page blocks. On subsequent runs this is a no-op —
+    update_cover handles the PATCH path.
+
+    Returns updated cover_state dict ({"cover_block_ids": [...], "cover_version": ...}).
+    """
+    if prior_cover_state and prior_cover_state.get("cover_block_ids"):
+        # Re-run: leave existing blocks where they are; update_cover will PATCH later.
+        return prior_cover_state
+
+    # First-run path — append (engagement page is empty → blocks land at top).
+    print(f"  Cover: pre-allocating {len(cover_blocks)} skeleton blocks at top of engagement page")
+    new_ids = []
+    for i in range(0, len(cover_blocks), MAX_BLOCKS_PER_REQUEST):
+        batch = cover_blocks[i:i + MAX_BLOCKS_PER_REQUEST]
+        try:
+            resp = api_request("PATCH", f"{NOTION_API}/blocks/{engagement_page_id}/children",
+                               headers, {"children": batch})
+            new_ids.extend(b["id"] for b in resp.get("results", []))
+        except Exception as e:
+            print(f"    Warning: cover skeleton batch failed: {e}")
+        if i + MAX_BLOCKS_PER_REQUEST < len(cover_blocks):
+            time.sleep(0.3)
+    return {"cover_block_ids": new_ids, "cover_version": COVER_VERSION}
+
+
+def update_cover(headers: dict, engagement_page_id: str, cover_blocks: list,
+                 prior_cover_state: Optional[dict]) -> dict:
+    """Update cover with finalized content (post-Pass-2, after link_map is complete).
+
+    Behaviour:
+      • If prior cover_version matches current AND block count matches AND a sample
+        of saved block_ids is alive → PATCH each block in place (position preserved).
+      • Otherwise → delete saved blocks (best-effort) and append fresh cover.
+        On re-runs, the appended blocks land at the END of the engagement page
+        (Notion API has no prepend-to-non-empty-parent). Logged as warning.
+
+    Returns updated cover_state.
+    """
+    prior_ids = (prior_cover_state or {}).get("cover_block_ids") or []
+    prior_version = (prior_cover_state or {}).get("cover_version")
+
+    structure_match = (
+        prior_version == COVER_VERSION
+        and len(prior_ids) == len(cover_blocks)
+        and bool(prior_ids)
+    )
+
+    if structure_match:
+        # Sample-check first 3 saved blocks to avoid full O(N) verification.
+        sample_alive = all(_cover_block_alive(headers, bid) for bid in prior_ids[:3])
+        if sample_alive:
+            print(f"  Cover: PATCHing {len(prior_ids)} blocks in place")
+            success = 0
+            for i, (block_id, new_block) in enumerate(zip(prior_ids, cover_blocks)):
+                btype = new_block["type"]
+                payload = {btype: new_block[btype]}
+                try:
+                    api_request("PATCH", f"{NOTION_API}/blocks/{block_id}", headers, payload)
+                    success += 1
+                except Exception as e:
+                    print(f"    Block {i + 1}/{len(prior_ids)} ({btype}) PATCH failed: {str(e)[:100]}")
+                if (i + 1) % 8 == 0:
+                    time.sleep(0.15)
+            print(f"    PATCHed {success}/{len(prior_ids)} blocks")
+            return {"cover_block_ids": prior_ids, "cover_version": COVER_VERSION}
+        print("  Cover: saved blocks dead — recreating (will land at end of page)")
+    elif prior_ids:
+        print(f"  Cover: version/count mismatch (prior={prior_version}/{len(prior_ids)}, "
+              f"new={COVER_VERSION}/{len(cover_blocks)}) — recreating (will land at end)")
+
+    # Recreate path: delete old (best-effort), append fresh
+    if prior_ids:
+        for bid in prior_ids:
+            try:
+                requests.delete(f"{NOTION_API}/blocks/{bid}", headers=headers)
+                time.sleep(0.05)
+            except Exception:
+                pass
+
+    new_ids = []
+    for i in range(0, len(cover_blocks), MAX_BLOCKS_PER_REQUEST):
+        batch = cover_blocks[i:i + MAX_BLOCKS_PER_REQUEST]
+        try:
+            resp = api_request("PATCH", f"{NOTION_API}/blocks/{engagement_page_id}/children",
+                               headers, {"children": batch})
+            new_ids.extend(b["id"] for b in resp.get("results", []))
+        except Exception as e:
+            print(f"    Warning: cover batch failed: {e}")
+        if i + MAX_BLOCKS_PER_REQUEST < len(cover_blocks):
+            time.sleep(0.3)
+    return {"cover_block_ids": new_ids, "cover_version": COVER_VERSION}
+
+
+def _update_page_title(headers: dict, page_id: str, new_title: str) -> None:
+    """PATCH a Notion page's title property. Best-effort — silent on failure."""
+    try:
+        api_request("PATCH", f"{NOTION_API}/pages/{page_id}", headers, {
+            "properties": {
+                "title": {"title": [{"type": "text", "text": {"content": new_title}}]}
+            }
+        })
+    except Exception as e:
+        print(f"    Warning: page title update failed for {page_id}: {str(e)[:100]}")
+
+
+def save_notion_meta(research_dir: Path, mapping: dict, feedback_page_id: str,
+                     engagement_page_id: str, cover_state: Optional[dict] = None) -> None:
     """Save page ID mapping and feedback page info to the research directory."""
     with open(research_dir / "notion-mapping.json", "w") as f:
         json.dump(mapping, f, indent=2)
+    feedback_payload = {
+        "feedback_page_id": feedback_page_id,
+        "engagement_page_id": engagement_page_id,
+    }
+    if cover_state:
+        feedback_payload["cover_block_ids"] = cover_state.get("cover_block_ids", [])
+        feedback_payload["cover_version"] = cover_state.get("cover_version", COVER_VERSION)
     with open(research_dir / "notion-feedback.json", "w") as f:
-        json.dump({
-            "feedback_page_id": feedback_page_id,
-            "engagement_page_id": engagement_page_id,
-        }, f, indent=2)
+        json.dump(feedback_payload, f, indent=2)
     print(f"Saved notion-mapping.json and notion-feedback.json")
 
 
@@ -609,8 +1431,24 @@ def main():
     #   2. engagement_page_id saved in notion-feedback.json from a previous run (auto-reuse)
     #   3. Create a new engagement page under NOTION_MBB_ROOT_PAGE_ID (first run)
     parent_page_id = os.environ.get("NOTION_PARENT_PAGE_ID")
+    # Cover state — block IDs and version of the engagement cover, persisted across runs
+    prior_cover_state: Optional[dict] = None
     if parent_page_id:
         print(f"Using existing parent page (env override): {parent_page_id}")
+        # Even with env override, try to pick up cover state if it was previously saved
+        # for the same research dir (lets the cover PATCH in place on re-runs).
+        feedback_meta_path = research_dir / "notion-feedback.json"
+        if feedback_meta_path.exists():
+            try:
+                with open(feedback_meta_path) as f:
+                    saved = json.load(f)
+                if saved.get("cover_block_ids"):
+                    prior_cover_state = {
+                        "cover_block_ids": saved.get("cover_block_ids", []),
+                        "cover_version": saved.get("cover_version"),
+                    }
+            except Exception:
+                pass
     else:
         # Try to auto-detect from previous run
         feedback_meta_path = research_dir / "notion-feedback.json"
@@ -626,6 +1464,12 @@ def main():
                         if not verify.get("archived", False):
                             parent_page_id = saved_engagement
                             print(f"Auto-detected engagement page from notion-feedback.json: {parent_page_id}")
+                            # Carry over cover state for in-place PATCH
+                            if saved.get("cover_block_ids"):
+                                prior_cover_state = {
+                                    "cover_block_ids": saved.get("cover_block_ids", []),
+                                    "cover_version": saved.get("cover_version"),
+                                }
                     except Exception as e:
                         print(f"  Saved engagement page {saved_engagement} no longer valid ({e}); will create new")
             except Exception as e:
@@ -657,14 +1501,44 @@ def main():
         try:
             with open(mapping_path) as f:
                 prior_mapping_raw = json.load(f)
+            # Normalize legacy "pretty title" keyed mappings to current stem-keyed schema.
+            # Safe no-op if already current.
+            prior_mapping_raw = normalize_mapping(prior_mapping_raw)
             if prior_mapping_raw:
                 print(f"Loaded prior mapping: {len(prior_mapping_raw)} entries — will reuse alive pages")
         except Exception as e:
             print(f"  Could not read notion-mapping.json: {e}")
     if force_create:
         print("NOTION_FORCE_CREATE=1 — ignoring prior mapping, creating fresh pages")
+        prior_cover_state = None  # also drop cover state — full rebuild
     if force_upload:
         print("NOTION_FORCE_UPLOAD=1 — skipping content-hash check, re-uploading everything")
+
+    # ----- Engagement cover prep ---------------------------------------------
+    # Detect engagement type (dd / bcg / generic), parse metadata, and extract
+    # DD verdict data (if applicable) BEFORE Pass 1. On first run (no prior
+    # cover_block_ids), we pre-allocate the cover skeleton so it lands at the
+    # top of the engagement page; subsequent child_page blocks from Pass 1
+    # append below. On re-runs we skip pre-allocation — the saved skeleton
+    # already holds the top slot and update_cover() will PATCH it in place
+    # after Pass 2.
+    engagement_type = detect_engagement_type(files)
+    engagement_meta = parse_engagement_metadata(research_dir)
+    verdict_data = extract_dd_verdict(research_dir) if engagement_type == "dd" else {}
+    print(f"Engagement: type={engagement_type}, company={engagement_meta['company']}, "
+          f"date={engagement_meta['date']}")
+    if engagement_type == "dd" and verdict_data.get("verdict"):
+        print(f"  Verdict extracted: {verdict_data['verdict']}  "
+              f"(fair_value={verdict_data.get('fair_value') or '—'}, "
+              f"confidence={verdict_data.get('confidence') or '—'})")
+
+    # Build skeleton cover (no link_map yet — bullets render as placeholders).
+    # Block count is identical to final cover so PATCH in place stays structurally valid.
+    skeleton_blocks = build_cover_blocks_for(engagement_type, engagement_meta,
+                                              verdict_data, {}, None)
+    # Pre-allocate at top of engagement page (no-op if cover already exists).
+    cover_state = pre_create_cover_skeleton(headers, parent_page_id, skeleton_blocks,
+                                             prior_cover_state)
 
     # Mapping schema accepts two shapes for back-compat:
     #   legacy:  {"stem": "<page_id>"}                                 (string)
@@ -771,8 +1645,17 @@ def main():
         feedback_page_id = create_feedback_page(headers, parent_page_id)
         print(f"Feedback page ID: {feedback_page_id}")
 
-    # Save metadata (preserves engagement_page_id for future runs to auto-detect)
-    save_notion_meta(research_dir, mapping, feedback_page_id, parent_page_id)
+    # ----- Finalize engagement cover -----------------------------------------
+    # Rebuild cover with real link_map + feedback_page_id, then PATCH each
+    # skeleton block in place (preserves top-of-page position) OR recreate
+    # if structure changed (lands at end of page on re-runs).
+    print("\nFinalizing engagement cover...")
+    final_cover_blocks = build_cover_blocks_for(engagement_type, engagement_meta,
+                                                 verdict_data, link_map, feedback_page_id)
+    cover_state = update_cover(headers, parent_page_id, final_cover_blocks, cover_state)
+
+    # Save metadata (preserves engagement_page_id + cover_block_ids for future runs)
+    save_notion_meta(research_dir, mapping, feedback_page_id, parent_page_id, cover_state)
 
     print(f"\nDone! Parent page: https://notion.so/{parent_page_id.replace('-', '')}")
 
