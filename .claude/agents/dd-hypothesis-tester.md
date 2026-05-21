@@ -15,16 +15,49 @@ You receive: company name, OUTPUT_DIR, 10 DD hypotheses, deal type, asking price
 
 ## Step 1 — Read All Available Evidence
 
-Read from OUTPUT_DIR:
-- `company-brief.md` — primary factual source
-- `market-map.md` — market structure
-- `segment-[slug].md` — all segment analyses
-- `portfolio.md` — portfolio synthesis
-- `domain-expert-input.md` — if exists
-- `validation-report.md` — data quality flags
-- `dd-market-validation.md` — if exists
+This agent is designed to run **as soon as segment analyses exist** — it does NOT require portfolio.md or validation-report.md to function. Most of the 10 DD hypotheses (H-M1, H-G1, H-K1, H-R1, H-V1, H-X1) test claims at the company/market level, not segment-internal strategy. The 4 segment-touching hypotheses (H-C1, H-T1, H-P1, H-S1) use segment files directly.
+
+Read from OUTPUT_DIR (in this priority order):
+
+**MANDATORY (cannot run without these):**
+- `company-brief.md` — primary factual source for company-level hypotheses
+- `market-map.md` — market structure for position/growth claims
+
+**STRONGLY PREFERRED (if present, use; if missing, note in Agent Log):**
+- `segment-[slug].md` — all segment analyses (needed for H-C1 moat, H-T1 tech, H-P1 execution, H-S1 synergy)
+
+**OPTIONAL (read if present, do NOT block if absent):**
+- `portfolio.md` — portfolio synthesis (provides Selection Lens context; if missing, derive from segment files)
+- `domain-expert-input.md` — industry insider lens
+- `validation-report.md` — data quality flags (if missing, lean on company-brief verified data)
+- `dd-market-validation.md` — adversarial market check (if missing, run own market validation inline)
+
+**Logic:**
+- If `portfolio.md` is missing → use Selection Lens reasoning yourself (which segment dominates the deal thesis). Note in output: "Portfolio synthesis not yet available; selection inferred from segment files."
+- If `validation-report.md` is missing → cross-reference numbers against company-brief.md directly; mark with ⚠️ if conflict.
+- If a segment file is missing for a deal-critical segment → flag H-C1/H-T1/H-P1/H-S1 as **⚠️ UNCERTAIN — insufficient evidence at this stage** rather than fabricating.
+
+This optionality enables Phase DD-1 to run **in parallel with Phase 1.5 (fact-checker) and Phase 2 (portfolio-analyst)** — collapsing 10–15 minutes from the pipeline. If validation-report or portfolio later contradicts your verdicts, the orchestrator runs a thin delta-pass.
 
 Build a mental model of what is confirmed, uncertain, and contested before testing hypotheses.
+
+---
+
+## Step 1.5 — Mega-Cap Pruning + Search Budget Cap
+
+**If the orchestrator passed `MEGA_CAP=true` (market cap >$100B, >20 sell-side analysts):**
+
+Three hypotheses are pre-answered by the existing sell-side coverage and do NOT require independent investigation. Skip the full disconfirm/confirm protocol for these — instead, do ONE search for the consensus view and render the verdict directly:
+
+- **H-V1 (Fair Value Supported)** — Search "[company] consensus price target [year]" once. Use the median PT from 20+ analysts as the consensus fair value. Verdict logic: if asking_price ≤ consensus_PT → ✅ CONFIRMED; if asking_price > consensus_PT by >15% → ⚠️ UNCERTAIN; if >30% premium → ❌ REFUTED. Single-source citation is acceptable here (it IS the aggregated view).
+- **H-K1 (Customer Concentration Acceptable)** — Mega-caps disclose customer concentration in 10-K Risk Factors. Read company-brief.md for the disclosure. If no single customer >10% of revenue → ✅ CONFIRMED with HIGH confidence. No search needed.
+- **H-P1 (Management Execution Capability)** — Mega-cap CEO and CFO have 5+ years of public track record measurable in stock returns vs S&P 500 and segment-level revenue CAGR. Read company-brief.md for management bios + 5-year TSR. No search needed.
+
+For the remaining 7 hypotheses (H-M1, H-G1, H-C1, H-T1, H-R1, H-S1, H-X1), proceed to Step 2 but with a **hard cap of 3 WebSearches per hypothesis** (down from the previous ~5). Prioritize: 1 disconfirming search, 1 confirming search, 1 tie-breaker if the first two are inconclusive. Then render verdict.
+
+**If MEGA_CAP is unset or false:** ignore this section and proceed to Step 2 with the standard 5-search budget.
+
+This reduces hypothesis-tester runtime from ~90 min to ~25 min on mega-caps without sacrificing decision quality — the three pre-answered hypotheses are well-covered by external research that we are duplicating wastefully.
 
 ---
 

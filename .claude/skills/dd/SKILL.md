@@ -33,8 +33,8 @@ Parse arguments:
 ```bash
 COMPANY=$(echo "COMPANY_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
 DATE=$(date +%d.%m.%Y)
-mkdir -p "/Users/maximpuda/Projects/due-diligence/research/${COMPANY}-${DATE}"
-echo "/Users/maximpuda/Projects/due-diligence/research/${COMPANY}-${DATE}"
+mkdir -p "/Users/cofounder/Documents/Projects/Due-Diligence-Vik/research/${COMPANY}-${DATE}"
+echo "/Users/cofounder/Documents/Projects/Due-Diligence-Vik/research/${COMPANY}-${DATE}"
 ```
 
 **If `--dir` IS provided:** Use that path as OUTPUT_DIR. Verify it exists and contains `final-report.md` or `portfolio.md`.
@@ -87,12 +87,17 @@ H-X1: [Specific claim about absence of hidden deal-breakers]
 
 **The core DD question:** [One sentence: what single decision does this DD inform?]
 
-**Pipeline:**
-- [BCG PHASES -1 to 3: Running now / Using existing output]
-- Phase DD-1: Market Validation + Hypothesis Testing (parallel)
-- Phase DD-2: Risk Matrix + Red Team (parallel)
-- Phase DD-3: Final DD Report
-- Estimated delivery: 48 hours
+**Pipeline (May 2026 optimization — Mega-Cap Blitz Mode, ~45–70 min wall-clock):**
+- BCG Phase -1: Data collection — checks `mega-cap-cache/` first; delta-refresh if hit (5–7 min) vs full (15–20 min)
+- BCG Phase -1.5: Silent mega-cap detection — sets MEGA_CAP flag per market cap / analyst coverage
+- BCG Phase 0: Market mapping + Tier-1/Tier-2 classification (parallel: market-mapper + data-scientist)
+- BCG Phase 1: Tier-aware segment analysis — Mega-cap override forces only top-2 segments to Tier-1
+- Phase 1.5/DD-1 FUSED: fact-checker (Haiku) + market-validator + hypothesis-tester (all parallel; hypothesis-tester prunes H-V1/H-K1/H-P1 if MEGA_CAP)
+- 🚨 Rule 14 gate — if 3+ hypotheses refuted → automatic PASS, short-circuit remainder
+- Phase 2 + DD-2 FUSED: portfolio + risk-analyst + red-team (3 parallel, Haiku read-only — no WebSearch)
+- Phase DD-3a: Master decision-first report (solo, Sonnet — still has WebSearch for backfill)
+- Phase DD-3b: Summary + Legal-derive + Insight-Booster (3 parallel, Haiku/Sonnet)
+- Phase DD-4: Notion export
 
 🚀 Starting...
 ```
@@ -147,6 +152,31 @@ After completion, read `company-brief.md`. Output:
 
 ---
 
+### Phase -1.5 — Mega-Cap Detection (silent, runs after researcher)
+
+After reading `company-brief.md`, scan it for **market capitalization** and **sell-side analyst coverage**.
+
+Set the engagement-wide flag `MEGA_CAP` per these rules:
+- **MEGA_CAP=true** if market cap >$100B AND (sell-side coverage ≥20 analysts OR ticker is in S&P 100)
+- **MEGA_CAP=false** otherwise
+
+Persist the flag to `dd-engagement.log`:
+```markdown
+## Phase -1.5 — Classification
+Market Cap: $X
+Analyst Coverage: N
+MEGA_CAP: true / false
+```
+
+**When MEGA_CAP=true, the pipeline activates these optimizations:**
+1. Phase 1 segment tiering: ONLY top-2 segments by revenue get Tier-1; remaining 3–5 default to Tier-2 (overrides market-map.md tier assignments)
+2. Phase 1.5/DD-1 hypothesis-tester: pre-answer H-V1, H-K1, H-P1 from consensus; cap remaining searches at 3/hypothesis (see dd-hypothesis-tester Step 1.5)
+3. Phase 2 + DD-2 run as a single parallel block (see Phase 2+DD-2 fused below)
+
+Pass `MEGA_CAP=true` (or false) as an explicit parameter in every downstream Agent call from this point.
+
+---
+
 ### BCG Phase 0 — Market Mapping (Parallel)
 
 In a **single message**, 2 Agent calls simultaneously:
@@ -185,7 +215,23 @@ After both complete, read `market-map.md`. Extract segments. Output:
 
 ---
 
-### BCG Phase 1 — Deep Segment Analysis (Parallel)
+### BCG Phase 1 — Deep Segment Analysis (Parallel, Tier-Aware)
+
+> **Tier-aware depth screening:** Before launching segment analysts, parse `market-map.md`
+> for the **Depth Tier** column. Each segment is marked Tier-1 (full analysis) or Tier-2
+> (compact: 6 strategies, 2 lenses, search budget 10). Pass `tier` parameter into each
+> agent call. This saves wall-clock when Phase 1 is bottlenecked by the slowest segment —
+> Tier-2 segments complete in ~half the time without losing decision-quality (because they
+> don't drive the verdict by construction).
+>
+> Typical distribution: 2–4 Tier-1 + 1–3 Tier-2 segments.
+>
+> **🆕 Mega-cap override (if `MEGA_CAP=true`):** ignore the market-map tier column. Sort
+> segments by revenue (descending). Assign Tier-1 to the TOP 2 only; everything else is
+> Tier-2 regardless of strategic flag. For a 7-segment mega-cap like Microsoft, this is
+> "Azure + M365 at Tier-1; Gaming, Dynamics, Search, LinkedIn, Windows-Consumer all
+> Tier-2." Saves ~15 min wall-clock in Phase 1 with <5% decision-quality impact
+> (small segments do not move the verdict for mega-caps by construction).
 
 In a **single message**, [N+1] Agent calls simultaneously:
 
@@ -193,6 +239,7 @@ In a **single message**, [N+1] Agent calls simultaneously:
 ```
 Company: [name]
 Segment: [Segment name]
+Tier: [1 or 2 — from market-map.md Depth Tier column]
 Output file: [OUTPUT_DIR]/segment-[slug].md
 Language: [language]
 
@@ -200,8 +247,11 @@ Read first: [OUTPUT_DIR]/company-brief.md, [OUTPUT_DIR]/market-map.md
 
 [Paste full segment context from market-map.md]
 
-Full 3-lens analysis (Description → Advantage → Future with 4 forecasts).
-Generate 10–15 fundamentally different strategies.
+For Tier-1: Full 3-lens analysis (Description → Advantage → Future with 4 forecasts),
+10–15 strategies, all quality gates, WebSearch budget 18–22.
+For Tier-2: Compact 2-lens (Description + Advantage; Future = 1-para diagnosis),
+6 strategies (2D, 1P, 1S, 1F, 1 exit), WebSearch budget 8–10, Innovate Gate N/A.
+
 Save complete output using Write tool.
 ```
 
@@ -224,10 +274,21 @@ Progress: `🔬 BCG Phase 1 — Segment Analysis ([N+1] agents in parallel) ⏳`
 
 ---
 
-### BCG Phase 1.5 — Fact Checking
+### BCG Phase 1.5 / DD-1 — FUSED PARALLEL BLOCK (4 agents, single message)
 
-One Agent call — bcg-fact-checker:
+> **Architectural change:** `bcg-fact-checker`, `dd-market-validator`, and `dd-hypothesis-tester`
+> are launched **simultaneously** right after Phase 1 completes. They have NO mutual dependency:
+>   - `bcg-fact-checker` validates segment numbers against original sources
+>   - `dd-market-validator` adversarially stress-tests TAM/CAGR/moat (primary input: segment files + market-map, NOT validation-report)
+>   - `dd-hypothesis-tester` tests 10 DD hypotheses (validation-report and portfolio are optional inputs — agent runs with what exists)
+>
+> This collapses the previous Phase 1.5 → Phase 2 → Phase DD-1 chain (~25 min) into a single
+> parallel block (~10–12 min). `bcg-portfolio-analyst` runs sequentially after, reading
+> the validation report and hypothesis verdicts.
 
+In a **single message**, launch 4 Agent calls simultaneously:
+
+**Agent call 1 — bcg-fact-checker (Haiku):**
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -241,56 +302,7 @@ Flag: ✅ VERIFIED / ⚠️ QUESTIONABLE / ❌ HALLUCINATED
 Save complete output using Write tool.
 ```
 
-After completion, read `validation-report.md`. Output:
-```
-✅ BCG Phase 1.5 — Fact Check complete.
-📋 Quality scores: [Seg1: X, Seg2: X, ...]
-⚠️ Critical issues: [N]
-🚀 Launching BCG Phase 2...
-```
-
----
-
-### BCG Phase 2 — Portfolio Synthesis
-
-One Agent call — bcg-portfolio-analyst:
-
-```
-Company: [name]
-Output directory: [OUTPUT_DIR]
-Output file: [OUTPUT_DIR]/portfolio.md
-Language: [language]
-Segments: [list all segment files]
-
-Read all files from OUTPUT_DIR.
-When data conflicts with validation-report → USE validation-report values.
-Build full portfolio view: MBB Matrix, synergies, resource allocation.
-Apply Selection Lens. Final recommendation.
-Save complete output using Write tool.
-```
-
-After completion, output:
-```
-✅ BCG Phase 2 — Portfolio Synthesis complete.
-🎯 BCG Recommendation: [Segment X — Strategy ID: Name]
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔍 SWITCHING TO DD MODE — Starting DD phases...
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-> **Note:** BCG Phases 2.5 (GTM) and 3 (final-report.md) are skipped in DD mode.
-> The DD report (dd-report.md) replaces final-report.md as the primary deliverable.
-> If user wants GTM analysis after DD, suggest running `/bcg-team --dir [OUTPUT_DIR]`.
-
----
-
-## DD PHASES
-
-### Phase DD-1 — Market Validation + Hypothesis Testing (Parallel)
-
-In a **single message**, 2 Agent calls simultaneously:
-
-**Agent call 1 — dd-market-validator:**
+**Agent call 2 — dd-market-validator (Sonnet):**
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -300,7 +312,11 @@ Asking price: [asking-price]
 Language: [language]
 
 Read from OUTPUT_DIR: company-brief.md, market-map.md, advanced-analytics.md,
-all segment-[slug].md files, validation-report.md.
+all segment-[slug].md files.
+
+NOTE: validation-report.md may not yet exist (running in parallel with bcg-fact-checker).
+Do NOT block. Cross-reference against company-brief.md (verified data) directly.
+A post-hoc consistency check runs after both finish if conflicts emerge.
 
 Adversarially validate all market claims. Apply VRIO framework.
 Check TAM reality, CAGR legitimacy, market share accuracy, moat durability.
@@ -308,7 +324,7 @@ Think like a short seller. Surface the gap between seller narrative and reality.
 Save complete output using Write tool.
 ```
 
-**Agent call 2 — dd-hypothesis-tester:**
+**Agent call 3 — dd-hypothesis-tester (Sonnet):**
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -329,40 +345,127 @@ H-S1: [full hypothesis text]
 H-V1: [full hypothesis text]
 H-X1: [full hypothesis text]
 
-Read all available files from OUTPUT_DIR.
+NOTE: portfolio.md and validation-report.md may not yet exist (running in parallel).
+The agent is designed to function without them — see dd-hypothesis-tester Step 1.
+If a deal-critical segment file is missing → mark relevant hypothesis ⚠️ UNCERTAIN, do NOT fabricate.
+
+Read available files from OUTPUT_DIR (mandatory: company-brief.md, market-map.md;
+strongly preferred: segment-*.md).
 For each hypothesis: search for disconfirming evidence first, then confirming.
 Render verdict: ✅ CONFIRMED / ⚠️ UNCERTAIN / ❌ REFUTED.
 Save complete output using Write tool.
 ```
 
+**Agent call 4 — bcg-digester (Haiku, runs after the other 3 — see note):**
+> The digester does not need to run in the same message; it runs as a thin pass
+> AFTER the 3 above complete (~30 seconds, Haiku). It compresses the 3 outputs into
+> `phase-1-digest.md` for downstream agents. Defer the digester call to immediately
+> after the parallel block completes (see Phase 1.5-Complete block below).
+
 Progress:
 ```
-🔍 Phase DD-1 — DD Analysis (parallel)
-   ├── dd-market-validator → dd-market-validation.md
-   └── dd-hypothesis-tester → dd-hypothesis-report.md
-   ⏳ Running in parallel...
+🔄 Phase 1.5 / DD-1 — Fused Parallel Block (3 agents)
+   ├── bcg-fact-checker (Haiku)        → validation-report.md
+   ├── dd-market-validator (Sonnet)    → dd-market-validation.md
+   └── dd-hypothesis-tester (Sonnet)   → dd-hypothesis-report.md
+   ⏳ Running in parallel — saves ~10–15 min vs. previous sequential chain...
 ```
-
-After both complete, read `dd-market-validation.md` and `dd-hypothesis-report.md`. Output:
-```
-✅ Phase DD-1 complete.
-
-📊 Market Validation: [score A/B/C/F] | [N] red flags
-📋 Hypotheses: [N] confirmed / [N] uncertain / [N] refuted
-[List any ❌ REFUTED hypotheses]
-
-🚀 Launching Phase DD-2: Risk Matrix + Red Team...
-```
-
-Update `dd-engagement.log` — append DD-1 results.
 
 ---
 
-### Phase DD-2 — Risk Matrix + Red Team (Parallel)
+### Phase 1.5-Complete — Rule 14 Early-PASS Gate + Digest
 
-In a **single message**, 2 Agent calls simultaneously:
+After all 3 agents above complete, read `dd-hypothesis-report.md`. Count ❌ REFUTED hypotheses.
 
-**Agent call 1 — dd-risk-analyst:**
+**🚨 RULE 14 EARLY-PASS GATE (mandatory check):**
+
+If `dd-hypothesis-report.md` shows **3 or more ❌ REFUTED hypotheses**, the verdict is **automatic PASS**. Short-circuit the remaining pipeline:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 RULE 14 TRIGGERED — Automatic PASS (early)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[N] refuted hypotheses detected:
+- [H-Xn]: [refutation reason, 1 sentence]
+- [H-Yn]: [refutation reason]
+- [H-Zn]: [refutation reason]
+
+3+ refuted = PASS, no exceptions (per dd-output-standard.md Rule 14).
+
+Short-circuiting pipeline:
+- Skipping Phase 2 (portfolio-analyst — not load-bearing for PASS verdict)
+- Skipping Phase DD-2 (risk-analyst + red-team — directional only, not decisive)
+- Jumping directly to abbreviated dd-production-decision-first (PASS-mode)
+```
+
+If user confirms (or auto-proceed flag set), jump to **Phase DD-3a (PASS-mode)** at bottom — `dd-production-decision-first` runs with reduced inputs (no portfolio, no risk matrix, no red team), reports PASS verdict with the refuted-hypothesis evidence as primary justification.
+
+**Otherwise (fewer than 3 refuted):** proceed to digester + portfolio synthesis.
+
+**Phase digest call (one Agent — bcg-digester, Haiku, ~30 sec):**
+```
+Phase: 1.5-and-DD-1
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/phase-1.5-digest.md
+Language: [language]
+Source files to digest:
+  - [OUTPUT_DIR]/validation-report.md
+  - [OUTPUT_DIR]/dd-market-validation.md
+  - [OUTPUT_DIR]/dd-hypothesis-report.md
+
+Condense each into 1 paragraph + key numbers + flags. Downstream portfolio-analyst
+and DD-2 agents will read this digest instead of re-reading all 3 full files.
+```
+
+Output to user:
+```
+✅ Phase 1.5 / DD-1 complete (parallel).
+📋 Validation scores: [Seg1: X, Seg2: X, ...]
+📊 Market Validation: [score A/B/C/F] | [N] red flags
+📋 Hypotheses: [N] confirmed / [N] uncertain / [N] refuted
+📄 Digest: phase-1.5-digest.md ([N] words)
+
+🚀 Launching FUSED Phase 2 + DD-2 (3 agents parallel)...
+```
+
+---
+
+### Phase 2 + DD-2 — FUSED PARALLEL BLOCK (Portfolio + Risk + Red Team)
+
+> **Architectural change (May 2026):** Portfolio synthesis, risk matrix, and red team
+> all derive from the same upstream artifacts (segment files + dd-market-validation +
+> dd-hypothesis-report + digest). Since the synthesis agents no longer WebSearch
+> (they are read-only — see their agent definitions), they have NO cross-dependency on
+> each other. All three launch simultaneously in a single message.
+>
+> Wall-clock: was ~264 min sequential (Phase 2 ~160 + DD-2 ~104). Now ~15–25 min for all
+> three in parallel (Haiku synthesis with no WebSearch).
+
+In a **single message**, 3 Agent calls simultaneously:
+
+**Agent call 1 — bcg-portfolio-analyst (Haiku, read-only):**
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/portfolio.md
+Language: [language]
+Segments: [list all segment files]
+MEGA_CAP: [true / false]
+
+Default read for context: [OUTPUT_DIR]/phase-1.5-digest.md
+Mandatory full reads: all segment-*.md files (for strategy IDs and revenue numbers).
+Read also: dd-market-validation.md, dd-hypothesis-report.md (just finished, available).
+
+When data conflicts with validation-report → USE validation-report values.
+Build full portfolio view: MBB Matrix, synergies, resource allocation.
+Apply Selection Lens. Final recommendation.
+
+🚫 NO WEBSEARCH — synthesis only. Flag [MISSING] if needed; DD-3a will backfill.
+Save complete output using Write tool.
+```
+
+**Agent call 2 — dd-risk-analyst (Haiku, read-only):**
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -370,19 +473,29 @@ Output file: [OUTPUT_DIR]/dd-risk-matrix.md
 Deal type: [deal-type]
 Asking price: [asking-price]
 Language: [language]
+MEGA_CAP: [true / false]
 
-Read all available files from OUTPUT_DIR including dd-market-validation.md
-and dd-hypothesis-report.md.
+Read these inputs from OUTPUT_DIR:
+- phase-1.5-digest.md (default context)
+- company-brief.md, market-map.md
+- all segment-*.md
+- dd-market-validation.md, dd-hypothesis-report.md (just-finished)
+
+NOTE: portfolio.md is being generated IN PARALLEL with this agent — do NOT block on it.
+If a portfolio-level signal is needed, derive it yourself from segment files. A delta-pass
+runs only if portfolio surfaces something material that risk-matrix missed.
 
 Build comprehensive risk matrix: minimum 15 risks across 8 categories.
 Score each risk: Probability × Impact → Severity (Critical/High/Medium/Low).
 Deep-dive on all Critical and High risks.
 Identify risk clusters (correlated risks).
 Flag deal breakers. Recommend deal protections.
+
+🚫 NO WEBSEARCH — synthesis only.
 Save complete output using Write tool.
 ```
 
-**Agent call 2 — dd-red-team:**
+**Agent call 3 — dd-red-team (Haiku, read-only):**
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -390,9 +503,16 @@ Output file: [OUTPUT_DIR]/dd-red-team.md
 Deal type: [deal-type]
 Asking price: [asking-price]
 Language: [language]
+MEGA_CAP: [true / false]
 
-Read all available files from OUTPUT_DIR including dd-market-validation.md
-and dd-hypothesis-report.md.
+Read these inputs from OUTPUT_DIR:
+- phase-1.5-digest.md (default context)
+- company-brief.md, market-map.md
+- all segment-*.md
+- dd-market-validation.md, dd-hypothesis-report.md (just-finished)
+
+NOTE: portfolio.md is being generated IN PARALLEL — do NOT block. Build the bear case
+from segment files + validation + hypothesis report directly.
 
 Build adversarial analysis:
 1. Bear case with 5+ specific arguments + financial model (bull/base/bear/deep bear)
@@ -401,41 +521,70 @@ Build adversarial analysis:
 4. Pre-mortem: "It's 3 years later and the deal failed. What happened?"
 5. Optimism bias audit
 
-Think like a short seller, skeptical LP, and rival bidder.
+🚫 NO WEBSEARCH — adversarial weaponization of existing facts. DD-1 already collected them.
 Save complete output using Write tool.
 ```
 
 Progress:
 ```
-⚔️  Phase DD-2 — Risk & Red Team (parallel)
-   ├── dd-risk-analyst → dd-risk-matrix.md
-   └── dd-red-team → dd-red-team.md
-   ⏳ Running in parallel...
+🔄  Phase 2 + DD-2 — FUSED PARALLEL BLOCK (3 agents)
+   ├── bcg-portfolio-analyst (Haiku, read-only) → portfolio.md
+   ├── dd-risk-analyst       (Haiku, read-only) → dd-risk-matrix.md
+   └── dd-red-team           (Haiku, read-only) → dd-red-team.md
+   ⏳ Running in parallel — saves ~4h vs sequential...
 ```
 
-After both complete, read both files. Output:
-```
-✅ Phase DD-2 complete.
+After all 3 complete, read all 3 files. If portfolio surfaces a Critical risk that
+risk-matrix missed (rare — segment files already covered it) → append a note to
+risk-matrix manually. Do NOT re-run the agents.
 
-🚨 Risks: [N] Critical | [N] High | [N] Medium | [N] Low
-🔴 Deal breakers flagged: [N]
-🐻 Bear case value: $[Xm] ([X]% of asking price)
-📊 Red Team verdict: [verdict]
-
-🚀 Launching Phase DD-3: Final DD Report...
-```
-
-Update `dd-engagement.log` — append DD-2 results.
+> **Note:** BCG Phases 2.5 (GTM) and 3 (final-report.md) are skipped in DD mode.
+> The DD report (dd-decision-first.md) replaces final-report.md as the primary deliverable.
+> If user wants GTM analysis after DD, suggest running `/bcg-team --dir [OUTPUT_DIR]`.
 
 ---
 
-### Phase DD-3a — Master Report + Legal Layer (Parallel)
+## DD PHASES
 
-This phase produces two outputs in parallel: the **decision-first master report** (the primary deliverable) and the **legacy institutional report** (legal/compliance reference).
+> **Phase DD-1 + DD-2 have been merged into the fused blocks above.**
+> What used to be a sequential chain (Phase 1.5 → 2 → DD-1 → DD-2, ~6 hours) is now
+> 1.5/DD-1 fused → 2+DD-2 fused (~30 min wall-clock).
 
-In a **single message**, 2 Agent calls simultaneously:
+**Digest pass — bcg-digester (Haiku, ~30 sec):**
+```
+Phase: 2+DD-2
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/phase-dd2-digest.md
+Source files: portfolio.md, dd-risk-matrix.md, dd-red-team.md
+Compress into 1 paragraph per file + key numbers + flags + Adversarial Twin tripwires summary.
+```
 
-**Agent call 1 — dd-production-decision-first:**
+Output to user:
+```
+✅ Phase 2 + DD-2 (fused) complete.
+
+🎯 BCG Recommendation: [Segment X — Strategy ID: Name]
+🚨 Risks: [N] Critical | [N] High | [N] Medium | [N] Low
+🔴 Deal breakers flagged: [N]
+🐻 Bear case value: $[Xm] ([X]% of asking price)
+🎯 Adversarial Twin tripwires: [N] pre-committed exit triggers
+📊 Red Team verdict: [verdict]
+
+🚀 Launching Phase DD-3: Master Report...
+```
+
+Update `dd-engagement.log` — append Phase 2 + DD-2 results.
+
+---
+
+### Phase DD-3a — Master Report (Solo)
+
+> **Architectural change:** `dd-production` (legal/institutional layer) has been moved to DD-3b
+> as a Haiku-derive pass (reformats master, does not re-synthesize). DD-3a now runs ONLY the
+> master report production. This eliminates the previous ~10-min duplicate synthesis.
+
+One Agent call — dd-production-decision-first (Sonnet):
+
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -448,9 +597,10 @@ REQUIRED first reads:
 1. .claude/skills/dd/references/dd-output-standard.md (15 rules)
 2. .claude/skills/dd/references/templates/dd-decision-first.md (structural reference)
 
-Then read ALL files from OUTPUT_DIR:
+Then read ALL files from OUTPUT_DIR (this agent is the exception — it reads everything in full):
 BCG: company-brief.md, market-map.md, portfolio.md, validation-report.md, all segment-*.md
 DD: dd-market-validation.md, dd-hypothesis-report.md, dd-risk-matrix.md, dd-red-team.md
+Digests (cross-reference only): phase-1.5-digest.md, phase-dd2-digest.md
 
 Assemble the master Decision-First DD Report applying ALL 15 rules from the standard:
 - Verdict block with threshold ladder (PASS @ $X / CONDITIONAL @ $Y / PROCEED @ $Z)
@@ -459,68 +609,51 @@ Assemble the master Decision-First DD Report applying ALL 15 rules from the stan
 - 3+ narrative failure scenarios (Rule 10 — NOT bullet lists)
 - Hypothesis scorecard with 3+ refuted = automatic PASS rule (Rule 14)
 - Risk matrix (20 risks) with "So what?" blocks (Rule 4) + decision anchors (Rule 5)
+- Adversarial Twin 90-day exit triggers (carry forward from dd-red-team.md verbatim)
 - Value bridge with probability-weighted expected return (Rule 13)
-- Exit triggers pre-commitment table
 - Pre-mortem as future-dated first-person narrative (Rule 11)
 - Strong end CTA in code block (Rule 9)
+
+Leave a clear anchor for Section 1.5 — "Non-Obvious Insights" — to be filled by dd-insight-booster.
+Add as placeholder: `# SECTION 1.5 — NON-OBVIOUS INSIGHTS\n*To be inserted by dd-insight-booster after this report saves.*`
 
 Lead with verdict. Dollar amounts before percentages (Rule 6). Position, not observation (Rule 15).
 Save to [OUTPUT_DIR]/dd-decision-first.md using Write tool.
 ```
 
-**Agent call 2 — dd-production (legal layer, unchanged):**
-```
-Company: [name]
-Output directory: [OUTPUT_DIR]
-Output file: [OUTPUT_DIR]/dd-report.md
-Deal type: [deal-type]
-Asking price: [asking-price]
-Language: [language]
-
-Read ALL files from OUTPUT_DIR:
-BCG: company-brief.md, market-map.md, portfolio.md, validation-report.md, all segment-*.md
-DD: dd-market-validation.md, dd-hypothesis-report.md, dd-risk-matrix.md, dd-red-team.md
-
-Assemble institutional DD Report (legal/compliance layer):
-- Investment Verdict: PROCEED / CONDITIONAL / PASS
-- Value Bridge: asking price vs. DD-adjusted fair value
-- Deal Breakers section
-- Hypothesis Scorecard
-- Risk Matrix summary
-- Red Team findings
-- Conditions for Proceed (if CONDITIONAL)
-- Post-close priorities
-
-Lead with verdict. Conclusion-first throughout. Be specific, not hedged.
-Save to [OUTPUT_DIR]/dd-report.md using Write tool.
-```
-
 Progress:
 ```
-📄 Phase DD-3a — Master + Legal Reports (parallel)
-   ├── dd-production-decision-first → dd-decision-first.md  (PRIMARY)
-   └── dd-production                → dd-report.md          (legal layer)
-   ⏳ Running in parallel...
+📄 Phase DD-3a — Master Report (solo)
+   └── dd-production-decision-first (Sonnet) → dd-decision-first.md (PRIMARY)
+   ⏳ Running...
 ```
 
-After both complete, read `dd-decision-first.md` to verify the verdict and key figures (you will pass these forward to DD-3b implicitly via the master file).
+After completion, read `dd-decision-first.md` to verify the verdict and key figures.
 
 Output:
 ```
 ✅ Phase DD-3a complete.
 📄 Master report: dd-decision-first.md
-📄 Legal layer: dd-report.md
-🚀 Launching Phase DD-3b: Summary layers...
+🚀 Launching Phase DD-3b: Summary layers + Legal layer + Insight Booster (3 parallel)...
 ```
 
 ---
 
-### Phase DD-3b — Summary Layers (Sequential, depends on DD-3a)
+### Phase DD-3b — Derivation Trio (Parallel, depends on DD-3a)
 
-This phase derives the two short-format layers from the master. It MUST run after DD-3a completes successfully — `dd-production-summary` reads `dd-decision-first.md` as its only data source.
+> **Architectural change:** DD-3b now runs THREE derivation agents in parallel, all reading
+> the master `dd-decision-first.md`. All three are non-synthetic (no new analysis):
+>   1. `dd-production-summary` (Haiku) → derives `dd-mid.md` + `dd-short.md`
+>   2. `dd-production` (Haiku) → derives institutional `dd-report.md` (legal layer)
+>   3. `dd-insight-booster` (Sonnet) → EDITS master to insert "Non-Obvious Insights" section
+>
+> The 3 agents touch different output files and do NOT conflict. dd-insight-booster edits
+> `dd-decision-first.md` in place; the other two write new files. All run from a single
+> message — wall-clock ~3–5 min (was ~5–8 min sequential).
 
-One Agent call — dd-production-summary:
+In a **single message**, 3 Agent calls simultaneously:
 
+**Agent call 1 — dd-production-summary (Haiku):**
 ```
 Company: [name]
 Output directory: [OUTPUT_DIR]
@@ -551,7 +684,62 @@ expected loss, and all 3 deal-breaks triggers must match the master exactly.
 Save both files using Write tool.
 ```
 
-Progress: `📄 Phase DD-3b — Summary Layers (dd-production-summary) → dd-mid.md + dd-short.md ⏳`
+**Agent call 2 — dd-production (legal layer, Haiku-derive):**
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/dd-report.md
+Deal type: [deal-type]
+Asking price: [asking-price]
+Language: [language]
+
+This is a Haiku-derive pass. Read [OUTPUT_DIR]/dd-decision-first.md as your ONLY source
+of facts/numbers/verdicts. Reformat into traditional institutional/legal-style structure.
+Do NOT introduce new analysis. Do NOT WebSearch. If a number is missing from the master,
+flag [MISSING — flag to dd-production-decision-first] rather than fabricating.
+
+See dd-production agent definition for the institutional report structure.
+Save to [OUTPUT_DIR]/dd-report.md using Write tool.
+```
+
+**Agent call 3 — dd-insight-booster (Sonnet):**
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Target file (edit in place): [OUTPUT_DIR]/dd-decision-first.md
+Language: [language]
+
+Read [OUTPUT_DIR]/dd-decision-first.md + phase-1.5-digest.md + phase-dd2-digest.md
++ dd-risk-matrix.md + dd-red-team.md + dd-market-validation.md + dd-hypothesis-report.md.
+
+Surface 3–5 non-obvious cross-file insights that a senior partner would notice but the master
+report did not foreground. Use the Edit tool to insert a "# 🎯 NON-OBVIOUS INSIGHTS" block
+in [OUTPUT_DIR]/dd-decision-first.md immediately after Section 1 (Verdict) and before Section 2.
+
+If the master already contains the placeholder `# SECTION 1.5 — NON-OBVIOUS INSIGHTS`, replace
+that block. Otherwise insert before Section 2.
+
+Each insight: cross-file synthesis, counter-intuitive, decision-relevant, specific, falsifiable.
+See dd-insight-booster agent definition for patterns and constraints.
+```
+
+Progress:
+```
+📄 Phase DD-3b — Derivation Trio (3 agents parallel)
+   ├── dd-production-summary (Haiku)  → dd-mid.md + dd-short.md
+   ├── dd-production (Haiku-derive)   → dd-report.md (legal layer)
+   └── dd-insight-booster (Sonnet)    → edits dd-decision-first.md (+ Non-Obvious Insights)
+   ⏳ Running in parallel...
+```
+
+After all 3 complete, output:
+```
+✅ Phase DD-3b complete.
+📄 Summary layers: dd-mid.md + dd-short.md
+📄 Legal layer: dd-report.md (derived from master)
+🎯 Non-Obvious Insights inserted into dd-decision-first.md
+🚀 Launching Phase DD-4: Notion Export...
+```
 
 ---
 
@@ -568,7 +756,7 @@ This phase is **mandatory**. The four decision deliverables MUST be exported to 
 **Step DD-4.1 — Verify Notion configuration:**
 
 ```bash
-set -a; source /Users/maximpuda/Projects/Due-Diligence-Vik/.env 2>/dev/null; set +a
+set -a; source /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.env 2>/dev/null; set +a
 
 if [ -z "$NOTION_TOKEN" ]; then
   echo "STATUS:MISSING_TOKEN"
@@ -591,43 +779,28 @@ Add to .env:
 After configuring, run manually:
   /notion-export [DIR_NAME]
 ```
-Then SKIP DD-4.2 and DD-4.3, but continue to Step Final. Do NOT block the pipeline.
+Then SKIP DD-4.2, but continue to Step Final. Do NOT block the pipeline.
 
 **If STATUS is `OK`:** proceed.
 
-**Step DD-4.2 — Create per-engagement parent page via Notion MCP:**
+**Step DD-4.2 — Run export with auto-routing:**
 
-Build the engagement title from the directory name:
-- `nvidia-19.05.2026` → `"NVIDIA — Strategic DD (19.05.2026)"`
-- `acme-corp-01.06.2026` → `"Acme Corp — Strategic DD (01.06.2026)"`
-
-Parse: split on FIRST date-looking token (`DD.MM.YYYY`), uppercase short names (≤4 chars), capitalize longer names.
-
-Use the Notion MCP tool `notion-create-pages` to create the engagement page:
-- `parent`: `{"type": "page_id", "page_id": "<NOTION_MBB_ROOT_PAGE_ID from Step DD-4.1>"}`
-- `title`: the formatted engagement title above
-- `icon`: 🔍 (magnifying glass — distinguishes DD from MBB engagements)
-
-Capture the returned page ID as `ENGAGEMENT_PAGE_ID`.
-
-**If MCP tool fails or unavailable:** Fall back to creating the page via the export script's auto-creation logic (omit `NOTION_PARENT_PAGE_ID` in Step DD-4.3). Log a warning but continue.
-
-**Step DD-4.3 — Run export with whitelist:**
+> **Auto-routing (NEW):** The export script automatically creates the engagement page on first run AND persists `engagement_page_id` to `notion-feedback.json`. On subsequent runs against the same folder (e.g. follow-up reports, feedback iterations, additional analyses), the script auto-detects the existing engagement page and appends new files under it — no duplicate parents, no duplicate Feedback pages.
+>
+> First-run engagement page title is generated from directory name: `nvidia-19.05.2026` → `"NVIDIA — MBB Engagement (19.05.2026)"`. Customize the title in Notion after first export if you want a different name (e.g. "Strategic DD" instead of "MBB Engagement") — the script will keep using the same `engagement_page_id` regardless of title.
 
 ```bash
-set -a; source /Users/maximpuda/Projects/Due-Diligence-Vik/.env; set +a
+set -a; source /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.env; set +a
 
 TARGET_DIR="[OUTPUT_DIR from Step 0]"
-ENGAGEMENT_PAGE_ID="[ENGAGEMENT_PAGE_ID from Step DD-4.2]"
 
 echo "Exporting 4 decision layers to Notion..."
 echo "Target dir: $TARGET_DIR"
-echo "Parent page: $ENGAGEMENT_PAGE_ID"
+echo "Auto-routing: script will create new engagement page on first run, or reuse existing on follow-up."
 echo "---"
 
-NOTION_PARENT_PAGE_ID="$ENGAGEMENT_PAGE_ID" \
 NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md" \
-  python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "$TARGET_DIR"
+  python3 /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "$TARGET_DIR"
 ```
 
 Stream output to user. The script will:
@@ -646,7 +819,7 @@ Progress:
    ⏳ Uploading...
 ```
 
-**Step DD-4.4 — Capture Notion URL:**
+**Step DD-4.3 — Capture Notion URL:**
 
 After the script finishes, extract the URL from its last line (`Parent page: https://notion.so/...`) and store it as `NOTION_URL`. This URL will be shown in Step Final.
 

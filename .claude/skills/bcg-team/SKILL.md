@@ -71,13 +71,14 @@ Output to user before launching anything:
 
 **Client:** [Company] — [industry, business model, key competitive context]
 
-**Engagement structure:**
-- Phase -1: Data collection (SEC EDGAR, financials, news, LinkedIn)
-- Phase 0:  Market mapping — identify all segments with real revenue
-- Phase 1:  Deep segment analysis — 10–15 strategies per segment
-- Phase 1.5: Fact-checking — validate all claims and numbers
+**Engagement structure (optimized):**
+- Phase -1: Data collection (bcg-researcher, Haiku — SEC EDGAR, financials, news)
+- Phase 0:  Market mapping + Tier-1/Tier-2 classification (parallel: market-mapper + data-scientist)
+- Phase 1:  Tier-aware segment analysis (Tier-1 full, Tier-2 compact) — saves time on peripherals
+- Phase 1.5: Fact-checking (bcg-fact-checker, Haiku) — validate all claims
 - Phase 2:  Portfolio synthesis — cross-segment view + final recommendation
-- Phase 3:  Final report production
+- Phase 2.5: GTM operationalization
+- Phase 3:  Final report production (Haiku — formats existing analysis)
 
 **10 Strategic Hypotheses** (across all 5 MBB lenses, specific and testable):
 
@@ -262,7 +263,17 @@ Agents: bcg-segment-analyst ×[N], bcg-domain-expert
 
 ---
 
-## Phase 1 — Deep Segment Analysis (Parallel)
+## Phase 1 — Deep Segment Analysis (Parallel, Tier-Aware)
+
+> **Tier-aware depth screening (NEW):** Before launching segment analysts, parse `market-map.md`
+> for the **Depth Tier** column produced by `bcg-market-mapper`. Each segment is classified:
+>   - **Tier-1**: ≥10% revenue share OR Star/Question Mark OR deal-critical → full analysis
+>   - **Tier-2**: <10% AND Cash Cow harvest / Dog / peripheral → compact analysis
+>
+> Pass `Tier` parameter into each segment-analyst call. Tier-2 segments use a compact mode
+> (2 lenses, 6 strategies, search budget 10) — saves wall-clock without losing verdict-quality,
+> because Tier-2 by construction does not drive the final recommendation.
+> Typical distribution: 2–4 Tier-1 + 1–3 Tier-2.
 
 In a **single message**, make **[N+1] Agent tool calls** simultaneously:
 
@@ -270,6 +281,7 @@ In a **single message**, make **[N+1] Agent tool calls** simultaneously:
 ```
 Company: [name]
 Segment: [Segment name]
+Tier: [1 or 2 — from market-map.md Depth Tier column]
 Output file: [OUTPUT_DIR]/segment-[slug].md
 Language: [user's language]
 
@@ -284,9 +296,13 @@ Rules:
 - Every number must have a source (URL + year)
 - If you can't find data via WebSearch → write "❌ Data not found" instead of estimating
 - Strategy financial parameters must be benchmarked against real examples
+- WebSearch budget: 18–22 (Tier-1) or 8–10 (Tier-2) — apply priority ranking from agent spec
 
-Conduct full 3-lens analysis (Description → Advantage → Future with 4 forecasts).
-Generate 10–15 fundamentally different strategies.
+For Tier-1: Full 3-lens analysis (Description → Advantage → Future with 4 forecasts),
+10–15 strategies across all archetypes, all quality gates active.
+For Tier-2: Compact 2-lens (Description + Advantage; Future = 1-paragraph diagnosis),
+6 strategies minimum (2D, 1P, 1S, 1F, 1 exit), Innovate Gate N/A, ~800-word Distillation.
+
 Include Segment Distillation at the end.
 Save complete output using Write tool.
 ```
@@ -319,9 +335,9 @@ Progress indicator:
 
 ---
 
-## Phase 1.5 — Fact Checking & Validation
+## Phase 1.5 — Fact Checking & Validation (+ optional digest)
 
-One Agent call — bcg-fact-checker:
+One Agent call — bcg-fact-checker (Haiku — mechanical search/compare):
 
 ```
 Company: [name]
@@ -340,6 +356,19 @@ For every numerical claim (TAM, CAGR, market share, margins, strategy financial 
 5. List critical issues requiring attention before portfolio analysis
 
 Save complete validation report using Write tool.
+```
+
+**Optional digest pass (recommended for portfolios with 5+ segments)** — bcg-digester (Haiku, ~30 sec):
+```
+Phase: 1
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/phase-1-digest.md
+Language: [user's language]
+Source files: all segment-*.md + domain-expert-input.md + validation-report.md
+
+Compress each file into 1-paragraph summary + key numbers + verdicts + flags.
+Downstream bcg-portfolio-analyst will read this digest as default context;
+full files only when digest signals a drill-down.
 ```
 
 After bcg-fact-checker completes, read `[OUTPUT_DIR]/validation-report.md` and:
@@ -410,10 +439,13 @@ Language: [user's language]
 
 Segments analyzed: [list all segment file names]
 
-Read all these files from [OUTPUT_DIR]:
+Default context: [OUTPUT_DIR]/phase-1-digest.md (if it exists)
+Drill into full files only when digest signals a flag or you need a specific table.
+
+Mandatory full reads (these have the load-bearing strategy details):
 - company-brief.md (verified raw data — primary source of truth)
 - market-map.md
-- segment-[slug].md (all segments)
+- segment-[slug].md (all segments — for strategy IDs and revenue numbers)
 - domain-expert-input.md
 - advanced-analytics.md
 - validation-report.md (⚠️ CRITICAL: use this to adjust data — replace flagged numbers with verified alternatives listed in the report)

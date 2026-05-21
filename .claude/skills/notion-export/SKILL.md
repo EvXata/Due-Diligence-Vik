@@ -2,7 +2,10 @@
 name: notion-export
 description: >
   Exports a MBB research folder to Notion. Each file becomes a separate child page
-  under one parent page inside "MBB Research Hub". Reads NOTION_TOKEN from .env automatically.
+  under one engagement parent page inside "MBB Research Hub". Reads NOTION_TOKEN from .env
+  automatically. **Auto-routing (NEW):** on second and subsequent invocations, the script
+  reads `notion-feedback.json` from the engagement folder to find the existing engagement page
+  and appends new files there — no duplicate engagement pages, no duplicate Feedback pages.
   Use when: /notion-export, "export to notion", "upload to notion", "send to notion",
   "экспорт в notion", "загрузить в notion", "перенести в notion".
 argument-hint: <research_dir_name or path>  # e.g. tsmc-30.03.2026
@@ -10,6 +13,30 @@ disable-model-invocation: true
 ---
 
 # Notion Export — MBB Research
+
+## How Auto-Routing Works (Persistent Engagement Linkage)
+
+After the FIRST export of an engagement folder, the script saves `notion-feedback.json` containing:
+```json
+{
+  "feedback_page_id": "...",
+  "engagement_page_id": "..."
+}
+```
+
+On every SUBSEQUENT export of the same folder (even with a different file via `NOTION_FILES_WHITELIST`), the script:
+
+1. Reads `notion-feedback.json` from the target directory
+2. Verifies the engagement page is still active (not archived) via Notion API
+3. **Auto-routes new files under the SAME engagement page** — no new parent created
+4. **Reuses the existing Feedback page** instead of creating duplicates
+
+This means: once an engagement is established in Notion, **every** subsequent file added locally and re-exported lands under the same parent automatically. No env var management needed.
+
+**Precedence order for parent page selection:**
+1. `NOTION_PARENT_PAGE_ID` env var (explicit override — always wins)
+2. `engagement_page_id` from `notion-feedback.json` (auto-detect from previous run)
+3. New engagement page under `NOTION_MBB_ROOT_PAGE_ID` (first run only)
 
 **Research to export:** $ARGUMENTS
 

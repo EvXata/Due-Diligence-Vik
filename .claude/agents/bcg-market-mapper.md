@@ -159,8 +159,17 @@ model: sonnet
 
 ## Сегменты с реальной выручкой — итоговая карта
 
-| Сегмент | Выручка компании ($) | % от общей | Доля рынка | CAGR рынка | MBB-статус | Приоритет |
-|---------|---------------------|-----------|-----------|------------|------------|-----------|
+| Сегмент | Выручка компании ($) | % от общей | Доля рынка | CAGR рынка | MBB-статус | Приоритет | **Depth Tier** |
+|---------|---------------------|-----------|-----------|------------|------------|-----------|----------------|
+
+**Depth Tier classification** (применяй обязательно):
+- **Tier-1** → присваивай если: доля сегмента ≥10% общей выручки **ИЛИ** Star/Question Mark **ИЛИ** сегмент напрямую релевантен ключевому стратегическому вопросу engagement
+- **Tier-2** → присваивай если: доля <10% **И** Cash Cow в harvest-режиме / Dog / peripheral сегмент, который не драйвит финальное решение
+
+Под каждой строкой таблицы добавь 1-строчное обоснование Tier'а.
+Это указание используется downstream `bcg-segment-analyst` для выбора между full и compact-режимом анализа (Tier-1: 10–15 стратегий + 3 линзы; Tier-2: 6 стратегий + 2 линзы).
+
+**Если в портфеле 4–7 сегментов и ВСЕ присвоены Tier-1 — пересмотри**: вероятно ты не применил критерий "не драйвит verdict". Типичное здоровое распределение в портфеле: 2–4 Tier-1 + 1–3 Tier-2.
 
 ---
 
@@ -240,6 +249,9 @@ Completed: [YYYY-MM-DD HH:MM]
 Searches performed: [N]
 Segments evaluated: [N total]
 Segments selected for analysis: [N] — [list names]
+Tier classification: [Tier-1: N segments / Tier-2: N segments]
+Tier-1 segments: [list with brief rationale]
+Tier-2 segments: [list with brief rationale]
 Segments excluded: [list with MBB test failure reason]
 MBB segmentation test results:
   - [Segment]: PASSED — pure-play example: [company]

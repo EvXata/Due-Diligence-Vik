@@ -454,12 +454,34 @@ def main():
             sys.exit(2)
 
     # Determine parent page for file pages.
-    # If NOTION_PARENT_PAGE_ID is set — use it directly (engagement page already created).
-    # Otherwise create an engagement page under NOTION_MBB_ROOT_PAGE_ID.
+    # Priority order:
+    #   1. NOTION_PARENT_PAGE_ID env var (explicit override — always wins)
+    #   2. engagement_page_id saved in notion-feedback.json from a previous run (auto-reuse)
+    #   3. Create a new engagement page under NOTION_MBB_ROOT_PAGE_ID (first run)
     parent_page_id = os.environ.get("NOTION_PARENT_PAGE_ID")
     if parent_page_id:
-        print(f"Using existing parent page: {parent_page_id}")
+        print(f"Using existing parent page (env override): {parent_page_id}")
     else:
+        # Try to auto-detect from previous run
+        feedback_meta_path = research_dir / "notion-feedback.json"
+        if feedback_meta_path.exists():
+            try:
+                with open(feedback_meta_path) as f:
+                    saved = json.load(f)
+                saved_engagement = saved.get("engagement_page_id")
+                if saved_engagement:
+                    # Verify the page still exists and is not archived
+                    try:
+                        verify = api_request("GET", f"{NOTION_API}/pages/{saved_engagement}", get_headers(token))
+                        if not verify.get("archived", False):
+                            parent_page_id = saved_engagement
+                            print(f"Auto-detected engagement page from notion-feedback.json: {parent_page_id}")
+                    except Exception as e:
+                        print(f"  Saved engagement page {saved_engagement} no longer valid ({e}); will create new")
+            except Exception as e:
+                print(f"  Could not read notion-feedback.json: {e}")
+
+    if not parent_page_id:
         root_page_id = os.environ.get("NOTION_MBB_ROOT_PAGE_ID")
         if not root_page_id:
             print("Error: set either NOTION_PARENT_PAGE_ID or NOTION_MBB_ROOT_PAGE_ID in .env")
@@ -510,12 +532,31 @@ def main():
             title = block["child_page"]["title"]
             mapping[title] = block["id"]
 
-    # Create Feedback page
-    print("Creating Feedback page...")
-    feedback_page_id = create_feedback_page(headers, parent_page_id)
-    print(f"Feedback page ID: {feedback_page_id}")
+    # Feedback page: reuse existing if previously created (avoid duplicates on re-uploads).
+    feedback_page_id = None
+    feedback_meta_path = research_dir / "notion-feedback.json"
+    if feedback_meta_path.exists():
+        try:
+            with open(feedback_meta_path) as f:
+                saved_fb = json.load(f)
+            saved_fb_id = saved_fb.get("feedback_page_id")
+            if saved_fb_id:
+                try:
+                    verify_fb = api_request("GET", f"{NOTION_API}/pages/{saved_fb_id}", get_headers(token))
+                    if not verify_fb.get("archived", False):
+                        feedback_page_id = saved_fb_id
+                        print(f"Reusing existing Feedback page: {feedback_page_id}")
+                except Exception as e:
+                    print(f"  Saved Feedback page {saved_fb_id} no longer valid ({e}); will create new")
+        except Exception:
+            pass
 
-    # Save metadata
+    if not feedback_page_id:
+        print("Creating Feedback page...")
+        feedback_page_id = create_feedback_page(headers, parent_page_id)
+        print(f"Feedback page ID: {feedback_page_id}")
+
+    # Save metadata (preserves engagement_page_id for future runs to auto-detect)
     save_notion_meta(research_dir, mapping, feedback_page_id, parent_page_id)
 
     print(f"\nDone! Parent page: https://notion.so/{parent_page_id.replace('-', '')}")
