@@ -115,7 +115,44 @@ H-X1: [Specific claim about absence of hidden deal-breakers]
 
 > **If running BCG phases fresh:** Execute all phases below before DD phases.
 
-Read `.claude/skills/bcg-team/references/bcg-framework-5-lenses.md` before proceeding with BCG phases.
+Read these first:
+- `.claude/skills/bcg-team/references/bcg-framework-5-lenses.md` — analytical framework
+- `.claude/skills/dd/references/tight-retry-template.md` — watchdog-aware agent caps
+
+---
+
+## 🛡️ Phase-Gate Protocol (MANDATORY after every phase)
+
+The 600-second stream watchdog can kill agents mid-Write with no automatic recovery.
+After every phase below, run the phase-gate script to verify expected files landed.
+If any are missing, **retry the responsible agent once with tighter caps** (see
+`tight-retry-template.md` for per-agent search/line/time caps).
+
+**Gate command (run after every phase):**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  <phase-name> "$OUTPUT_DIR" [segment-slugs]
+```
+
+Phase names: `phase-minus-1` | `phase-0` | `phase-1` | `phase-1.5` | `phase-2-dd-2` | `phase-dd-3a` | `phase-dd-3b` | `phase-dd-4`
+
+**On FAIL (exit code 1) — retry policy:**
+1. Identify which agent owns each MISSING file (1-to-1 mapping per phase).
+2. Relaunch that agent ONCE with the matching cap row from `tight-retry-template.md`
+   pasted at the top of the prompt as `🚨 HARD CONSTRAINTS`.
+3. Run the gate again.
+4. If gate fails a second time:
+   - If file is non-blocking (data-scientist, domain-expert, advanced-analytics) →
+     continue with `DEGRADED` flag in `dd-engagement.log`.
+   - If file is blocking (segments, portfolio, master report) → halt the phase,
+     surface the failure to the user, and ask whether to (a) write a manual stub,
+     (b) skip the deliverable, or (c) retry once more with even tighter caps.
+
+**On OK (exit code 0):** proceed to next phase.
+
+Every agent prompt in this pipeline should include the universal boilerplate from
+`tight-retry-template.md` — search cap, line cap, time target. Failure to inject
+these caps is the root cause of watchdog kills.
 
 ---
 
@@ -143,7 +180,12 @@ Save complete output using Write tool.
 
 Progress: `📚 BCG Phase -1 — Data Collection (bcg-researcher) → company-brief.md ⏳`
 
-After completion, read `company-brief.md`. Output:
+**🛡️ Gate after completion:**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  phase-minus-1 "$OUTPUT_DIR"
+```
+If FAIL → retry bcg-researcher once with caps from `tight-retry-template.md`. Then read `company-brief.md`. Output:
 ```
 ✅ BCG Phase -1 complete.
 📊 [N] data points | [X%] verified | Key gaps: [list]
@@ -206,7 +248,15 @@ Save complete output using Write tool.
 
 Progress: `🗺️ BCG Phase 0 — Market Mapping (parallel: bcg-market-mapper + bcg-data-scientist) ⏳`
 
-After both complete, read `market-map.md`. Extract segments. Output:
+**🛡️ Gate after both complete:**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  phase-0 "$OUTPUT_DIR"
+```
+If FAIL on `market-map.md` (blocking) → retry bcg-market-mapper with tighter caps.
+If FAIL only on `advanced-analytics.md` (non-blocking) → log DEGRADED and continue.
+
+Then read `market-map.md`. Extract segments. Output:
 ```
 ✅ BCG Phase 0 complete.
 🗺️ [N] segments identified: [list]
@@ -418,6 +468,18 @@ Condense each into 1 paragraph + key numbers + flags. Downstream portfolio-analy
 and DD-2 agents will read this digest instead of re-reading all 3 full files.
 ```
 
+**🛡️ Gate before advancing:**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  phase-1.5 "$OUTPUT_DIR"
+```
+If FAIL → retry the responsible agent(s) once with caps from `tight-retry-template.md`.
+Also gate Phase 1 (segment files) here if you didn't already:
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  phase-1 "$OUTPUT_DIR" "<comma-separated-segment-slugs>"
+```
+
 Output to user:
 ```
 ✅ Phase 1.5 / DD-1 complete (parallel).
@@ -534,9 +596,19 @@ Progress:
    ⏳ Running in parallel — saves ~4h vs sequential...
 ```
 
-After all 3 complete, read all 3 files. If portfolio surfaces a Critical risk that
-risk-matrix missed (rare — segment files already covered it) → append a note to
-risk-matrix manually. Do NOT re-run the agents.
+**🛡️ Gate after all 3 complete:**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  phase-2-dd-2 "$OUTPUT_DIR"
+```
+If FAIL on any of `portfolio.md`, `dd-risk-matrix.md`, `dd-red-team.md`:
+- Each is blocking for DD-3a. Retry the responsible agent once with caps from
+  `tight-retry-template.md` (read-only synthesis row: 0 searches, 300-350 lines, 6 min).
+- This is the phase most prone to watchdog kills because all 3 agents Write large outputs.
+
+After all 3 complete and gate passes, read all 3 files. If portfolio surfaces a Critical
+risk that risk-matrix missed (rare — segment files already covered it) → append a note
+to risk-matrix manually. Do NOT re-run the agents.
 
 > **Note:** BCG Phases 2.5 (GTM) and 3 (final-report.md) are skipped in DD mode.
 > The DD report (dd-decision-first.md) replaces final-report.md as the primary deliverable.
@@ -627,6 +699,17 @@ Progress:
    └── dd-production-decision-first (Sonnet) → dd-decision-first.md (PRIMARY)
    ⏳ Running...
 ```
+
+**🛡️ Gate after completion:**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  phase-dd-3a "$OUTPUT_DIR"
+```
+If FAIL → `dd-decision-first.md` is the primary deliverable; retry is MANDATORY.
+This agent is the longest writer in the pipeline (~700 lines target). It is highly
+watchdog-prone if not constrained. Retry with the two-pass instruction:
+"Save a skeleton via Write first (300 lines), then Edit specific sections to flesh out
+content. Never compose a single Write payload >600 lines."
 
 After completion, read `dd-decision-first.md` to verify the verdict and key figures.
 
@@ -731,6 +814,15 @@ Progress:
    └── dd-insight-booster (Sonnet)    → edits dd-decision-first.md (+ Non-Obvious Insights)
    ⏳ Running in parallel...
 ```
+
+**🛡️ Gate after all 3 complete:**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  phase-dd-3b "$OUTPUT_DIR"
+```
+If FAIL on `dd-mid.md` or `dd-short.md` → retry dd-production-summary (Haiku, low risk).
+If FAIL on `dd-report.md` → retry dd-production (Haiku, low risk).
+dd-insight-booster edits dd-decision-first.md in place; verify by checking the file size grew.
 
 After all 3 complete, output:
 ```
