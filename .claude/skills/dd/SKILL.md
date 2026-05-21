@@ -24,6 +24,7 @@ Parse arguments:
 - `--asking-price` — e.g. $500m, $2.5bn (optional but highly recommended)
 - `--dir` — path to existing bcg-team output directory (skip BCG phases if provided)
 - `--language` — en | ru | [any language] (default: en)
+- `--investor-profile` — `vc` | `family-office` | `retail-token-buyer` | `acquirer` (optional). When set, the pipeline runs an extra **Phase DD-3c — Investor-Profile Synthesis** that produces three audience-tailored memos: `bull-case.md`, `customer-discovery.md`, `ma-exit-scenarios.md`. Recommended for individual / family-office / retail-token investors who need decision-framing beyond the four standard decision layers.
 
 ---
 
@@ -937,7 +938,106 @@ After all 3 complete, output:
 📄 Summary layers: dd-mid.md + dd-short.md
 📄 Legal layer: dd-report.md (derived from master)
 🎯 Non-Obvious Insights inserted into dd-decision-first.md
+🚀 Launching Phase DD-3c: Investor-Profile Synthesis...   (if --investor-profile set)
+   OR
+🚀 Launching Phase DD-4: Notion Export...                  (if --investor-profile not set)
+```
+
+---
+
+### Phase DD-3c — Investor-Profile Synthesis (Parallel, OPTIONAL)
+
+> **Triggered by `--investor-profile` flag.** When set, produces three audience-tailored
+> memos that sit alongside the four standard decision layers:
+>   1. `bull-case.md` — what has to be true to make money on this
+>   2. `customer-discovery.md` — DMU + churn + win-back analysis per segment
+>   3. `ma-exit-scenarios.md` — strategic acquirers, liquidation waterfall, exit optionality
+>
+> These memos are derivative — they read master + supporting files and synthesize, they
+> do NOT WebSearch. All three run in a single parallel block. Wall-clock ~3–5 min.
+>
+> Added after the dYdX (19.05.2026) post-mortem identified that the 4 standard decision
+> layers don't answer the typical retail-token / family-office investor question:
+> "what does my decision look like as a [profile]?"
+
+**If `--investor-profile` is NOT set:** Skip this phase. Jump directly to Phase DD-4.
+
+**If `--investor-profile` IS set:**
+
+In a **single message**, launch 3 Agent calls simultaneously:
+
+**Agent call 1 — dd-bull-case-writer (Sonnet):**
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/bull-case.md
+Investor profile: [vc / family-office / retail-token-buyer / acquirer]
+Deal type: [deal-type]
+Asking price: [asking-price]
+Language: [language]
+
+Read all files in OUTPUT_DIR (do NOT WebSearch). See dd-bull-case-writer.md
+for structure and rules. Trace every number back to a source file or flag
+[MISSING — flag to master]. Max 350 lines.
+```
+
+**Agent call 2 — dd-customer-discovery-synthesizer (Sonnet):**
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/customer-discovery.md
+Investor profile: [profile]
+Language: [language]
+
+Read all files in OUTPUT_DIR (do NOT WebSearch). See
+dd-customer-discovery-synthesizer.md for structure. DMU table per
+high-priority segment. Max 300 lines.
+```
+
+**Agent call 3 — dd-ma-scenarios-analyst (Sonnet):**
+```
+Company: [name]
+Output directory: [OUTPUT_DIR]
+Output file: [OUTPUT_DIR]/ma-exit-scenarios.md
+Investor profile: [profile]
+Deal type: [deal-type]
+Asking price: [asking-price]
+Language: [language]
+
+Read all files in OUTPUT_DIR (do NOT WebSearch). See dd-ma-scenarios-analyst.md
+for structure. Probability-weighted exit table at the top. Max 350 lines.
+```
+
+Progress:
+```
+🎯 Phase DD-3c — Investor-Profile Synthesis (3 agents parallel, profile: [profile])
+   ├── dd-bull-case-writer (Sonnet)                  → bull-case.md
+   ├── dd-customer-discovery-synthesizer (Sonnet)    → customer-discovery.md
+   └── dd-ma-scenarios-analyst (Sonnet)              → ma-exit-scenarios.md
+   ⏳ Running in parallel...
+```
+
+**Phase gate (mandatory):**
+```bash
+bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+  [OUTPUT_DIR] DD-3c
+```
+If any of the 3 files MISSING → retry that agent ONCE with `tight-retry-template.md`
+caps (lines = 250 / time = 4 min). On second failure, log degradation and continue
+to DD-4 — these memos are additive, not blocking.
+
+After all 3 complete:
+```
+✅ Phase DD-3c complete.
+📄 Investor-profile memos: bull-case.md + customer-discovery.md + ma-exit-scenarios.md
+   Profile: [profile]
 🚀 Launching Phase DD-4: Notion Export...
+```
+
+**Phase DD-4 whitelist update:** When `--investor-profile` is set, add the 3 new files
+to the Notion export whitelist alongside the 4 standard decision layers:
+```
+NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md,bull-case.md,customer-discovery.md,ma-exit-scenarios.md"
 ```
 
 ---
@@ -951,6 +1051,12 @@ This phase is **mandatory**. The four decision deliverables MUST be exported to 
 2. `dd-mid.md` — 5-min pre-meeting briefing
 3. `dd-decision-first.md` — Full investment report (PRIMARY)
 4. `dd-report.md` — Institutional / legal reference
+
+If `--investor-profile` was set AND Phase DD-3c ran, also include:
+
+5. `bull-case.md` — what has to be true to make money
+6. `customer-discovery.md` — DMU + churn + win-back per segment
+7. `ma-exit-scenarios.md` — strategic acquirers + liquidation waterfall
 
 **Step DD-4.1 — Verify Notion configuration:**
 
@@ -993,17 +1099,25 @@ set -a; source /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.env; set +
 
 TARGET_DIR="[OUTPUT_DIR from Step 0]"
 
-echo "Exporting 4 decision layers to Notion..."
+# Base whitelist (4 decision layers); extend with investor-profile memos if Phase DD-3c ran.
+WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md"
+if [ -f "$TARGET_DIR/bull-case.md" ]; then
+  WHITELIST="$WHITELIST,bull-case.md,customer-discovery.md,ma-exit-scenarios.md"
+  echo "Investor-profile memos detected — extending whitelist to 7 files."
+fi
+
+echo "Exporting decision layers to Notion..."
 echo "Target dir: $TARGET_DIR"
+echo "Whitelist: $WHITELIST"
 echo "Auto-routing: script will create new engagement page on first run, or reuse existing on follow-up."
 echo "---"
 
-NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md" \
+NOTION_FILES_WHITELIST="$WHITELIST" \
   python3 /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "$TARGET_DIR"
 ```
 
 Stream output to user. The script will:
-- Filter to exactly the 4 whitelisted files
+- Filter to exactly the whitelisted files (4 by default, 7 if investor-profile ran)
 - Create one Notion child page per file under `ENGAGEMENT_PAGE_ID`
 - Create the `📋 Feedback` page automatically
 - Save `notion-mapping.json` and `notion-feedback.json` into the engagement directory

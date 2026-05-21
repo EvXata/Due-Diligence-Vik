@@ -43,6 +43,9 @@ NVIDIA run hit this on the first attempt.
 | dd-production-summary | 0 | 250 | 4 min |
 | dd-production (legal layer) | 0 | 600 | 6 min |
 | dd-insight-booster | 0 | edit-in-place | 4 min |
+| dd-bull-case-writer (DD-3c) | 0 | 350 | 5 min |
+| dd-customer-discovery-synthesizer (DD-3c) | 0 | 300 | 5 min |
+| dd-ma-scenarios-analyst (DD-3c) | 0 | 350 | 5 min |
 
 ## Why these specific numbers
 

@@ -24,6 +24,31 @@ Read из OUTPUT_DIR:
 
 ---
 
+## Шаг 1.5 — TRUST CONTRACT для уже-верифицированных binding disclosures (added May 2026)
+
+**Why:** `bcg-segment-analyst` теперь обязан верифицировать binding-disclosure claims через primary SEC filings (см. BINDING-DISCLOSURE RULE в spec'е segment-analyst'а). Если сегмент-аналитик уже сделал primary-source check + поставил tag — fact-checker НЕ должен дублировать ту же работу (двойной WebFetch на тот же SEC EDGAR URL).
+
+**Тег для skip:** Если в segment файле число помечено любой из этих формулировок:
+- `[BINDING DISCLOSURE confirmed via SEC 8-K [DATE], CIK [XXXXXXX], accession [XX-XXXXXX]]`
+- `[BINDING DISCLOSURE confirmed via 10-K Item [X], filed [DATE]]`
+- `[BINDING DISCLOSURE confirmed via [primary-source URL]]`
+
+→ **Засчитай число как ✅ VERIFIED без повторного WebFetch.** Запиши в `validation-report.md`:
+```
+[number]: ✅ VERIFIED via binding-disclosure trust contract — segment-analyst already fetched [source]
+```
+
+**Когда НЕ применять trust contract:**
+- Тэг отсутствует, есть только news headline — обычный fact-check workflow
+- Тэг указан но source format подозрительный (например "[BINDING DISCLOSURE]" без CIK/accession) — обычный fact-check + флаг ⚠️ "binding-disclosure tag missing required metadata"
+- Числа НЕ из binding-disclosure категорий (TAM, CAGR, market share, generic competitor revenue) — обычный fact-check workflow (binding-disclosure rule только для legal commitments)
+
+**Counter-check (anti-fraud):** Раз в ~10 trust-contract instances делай ОДНУ контрольную верификацию (sample audit). Если sample не сходится с реальным первоисточником → revoke trust contract для этого segment-analyst'а, downgrade весь segment до ⚠️ QUESTIONABLE.
+
+**Net effect:** При типичных 3-7 binding-disclosure тэгах на сегмент это экономит ~3-7 минут fact-checker времени + eliminates double-spend на тот же SEC EDGAR fetch (rate-limit friendly).
+
+---
+
 ## Шаг 2 — Верификация по типам утверждений
 
 ### 2.1 Рыночные данные (TAM, SAM, CAGR)

@@ -57,11 +57,13 @@ model: sonnet
 Sonnet легко тратит 30+ поисков на сегмент, что становится узким местом Phase 1 (фаза ограничена медленным сегментом). Эмпирика Microsoft DD (20.05.2026): Azure Tier-1 segment использовал 21 поиск, wall-clock 26:44 — заблокировал всю Phase 1 wave.
 
 **Бюджеты:**
-- **Tier-1 budget: 16 поисков (HARD CAP, no exceptions)**
-- **Tier-2 BATCH (2-5 сегментов): 12 поисков на весь batch**
+- **Tier-1 budget: 16 поисков (HARD CAP, no exceptions)** — FIRST attempt
+- **Tier-2 BATCH (2-5 сегментов): 12 поисков на весь batch** — FIRST attempt
 - Tier-2 single (legacy): 8 поисков
 
 **Cap enforcement:** при достижении 14/16 (Tier-1) или 10/12 (batch) ОСТАНОВИ research, перейди к Strategy Generation с имеющимися данными. Лучше неполный анализ с честным GAP STATEMENT, чем provoked socket timeout, который отнимает 15-20 минут и требует retry.
+
+**🔁 Retry caps (если first attempt watchdog-killed):** Если orchestrator перезапускает агента после phase-gate failure — используй tighter cap из `tight-retry-template.md`: **Tier-1 RETRY: 4 searches / Tier-2 RETRY: 3 searches**. Retry означает что first attempt с 16 уже не вписался в watchdog — на втором attempt экстремально консервативно: больше синтеза из existing context, меньше fresh research.
 
 Priority ranking (выполняй в этом порядке, останавливайся при достижении cap):
 

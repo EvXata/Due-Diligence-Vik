@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """
 Export research files to Notion. Idempotent: re-running updates existing pages
-instead of creating duplicates.
+instead of creating duplicates. Skips files whose rendered content is unchanged.
 
 Each file → one Notion child page under the engagement parent page.
 
 Idempotency model:
   • On first run, creates a page per file and writes notion-mapping.json
-    ({"filename_stem": "<page_id>"}) plus notion-feedback.json (engagement +
-    feedback page IDs).
+    ({"filename_stem": {"page_id": "<id>", "sha256": "<hex>"}}) plus
+    notion-feedback.json (engagement + feedback page IDs).
   • On subsequent runs, reads notion-mapping.json. For each file:
-      - if its saved page is alive (not archived) → WIPES blocks + re-uploads
-        content in place. Page ID is preserved. Old Notion links keep working.
+      - if its saved page is alive AND rendered-content sha256 matches the
+        stored hash → SKIPS upload entirely (no API calls for that page).
+      - if its saved page is alive but content has changed → WIPES blocks +
+        re-uploads in place. Page ID preserved. Old Notion links keep working.
       - if the saved page is archived/missing → creates a new page.
       - if a file is new (not in mapping) → creates a new page.
+  • Legacy mapping schema ({"stem": "<page_id>"}) is auto-upgraded on first
+    run; legacy entries cannot skip (no prior hash) so always re-upload once,
+    then store hash for future skip-eligibility.
   • The Feedback page ID and engagement page ID survive across runs too
     (saved in notion-feedback.json; only recreated if archived).
 
@@ -22,6 +27,9 @@ Usage:
 
     # Force fresh pages (ignore prior mapping — intentional rebuild):
     NOTION_FORCE_CREATE=1 NOTION_TOKEN=secret_xxx python3 export_to_notion.py <research_dir>
+
+    # Force re-upload (keep page IDs, ignore content-hash skip):
+    NOTION_FORCE_UPLOAD=1 NOTION_TOKEN=secret_xxx python3 export_to_notion.py <research_dir>
 
     # Explicit parent page override (rarely needed — auto-detected from saved state):
     NOTION_PARENT_PAGE_ID=<page_id> NOTION_TOKEN=secret_xxx python3 export_to_notion.py <research_dir>
@@ -35,9 +43,10 @@ import sys
 import re
 import time
 import json
+import hashlib
 import requests
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 
 NOTION_API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
@@ -391,42 +400,62 @@ def rewrite_cross_links(content: str, link_map: Dict[str, str]) -> str:
 
 
 def ensure_page_exists(headers: dict, parent_page_id: str, filepath: Path,
-                      existing_page_id: Optional[str] = None) -> str:
-    """Allocate a Notion page for `filepath` and return its page_id.
+                      existing_page_id: Optional[str] = None) -> Tuple[str, bool]:
+    """Allocate a Notion page for `filepath`. Returns (page_id, was_reused).
 
-    Reuses an existing page if alive; otherwise creates a new empty page.
-    Does NOT append content — that's done by export_file_content().
+    `was_reused=True` means we successfully verified the existing_page_id is
+    alive — the caller can SKIP a second page_is_alive() check before wipe.
+    `was_reused=False` means we created a fresh page (no wipe needed).
+
     Splitting allocation from content lets us build a full link_map before
     any content gets uploaded, so cross-file links can be rewritten.
     """
     title = filepath.stem
     if existing_page_id and page_is_alive(headers, existing_page_id):
         print(f"  Allocating: {filepath.name} — reusing existing page {existing_page_id}")
-        return existing_page_id
+        return existing_page_id, True
     if existing_page_id:
         print(f"  Allocating: {filepath.name} — saved page {existing_page_id} not alive; creating new")
     else:
         print(f"  Allocating: {filepath.name} — creating new page")
-    return create_page(headers, parent_page_id, title)
+    return create_page(headers, parent_page_id, title), False
+
+
+def render_content(filepath: Path, link_map: Optional[Dict[str, str]] = None) -> Tuple[str, str]:
+    """Read `filepath`, rewrite cross-file links if `link_map` provided,
+    and return (rendered_content, sha256_hex).
+
+    Hash is computed on POST-rewrite content so that link_map changes
+    invalidate the cache correctly (a rewrite that changes target page_ids
+    must trigger a re-upload, not a "skip — unchanged" decision)."""
+    content = filepath.read_text(encoding="utf-8")
+    if link_map:
+        content = rewrite_cross_links(content, link_map)
+    content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    return content, content_hash
 
 
 def export_file_content(headers: dict, page_id: str, filepath: Path,
-                        existing_page_id: Optional[str] = None,
-                        link_map: Optional[Dict[str, str]] = None) -> None:
-    """Read `filepath`, optionally rewrite cross-links, and upload to `page_id`.
+                        wipe_first: bool = False,
+                        link_map: Optional[Dict[str, str]] = None,
+                        rendered_content: Optional[str] = None) -> str:
+    """Upload `filepath` content to `page_id`. Returns sha256 of rendered content.
 
-    If `page_id` matches an alive prior page, wipes existing blocks first
-    (idempotent re-export). Otherwise just appends.
+    `wipe_first=True` triggers idempotent re-export (delete all existing blocks
+    before append). Callers from main() already know this from ensure_page_exists()
+    return value — no redundant page_is_alive() API call here.
+
+    `rendered_content` allows caller to pre-compute the post-rewrite content
+    (e.g. for hash comparison) and avoid double-reading + double-rewriting.
     """
     print(f"  Exporting content: {filepath.name} → {page_id}")
-    content = filepath.read_text(encoding="utf-8")
+    if rendered_content is not None:
+        content = rendered_content
+        content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    else:
+        content, content_hash = render_content(filepath, link_map)
 
-    # Rewrite local file links to absolute Notion URLs before block conversion.
-    if link_map:
-        content = rewrite_cross_links(content, link_map)
-
-    # If this is a reused page, wipe before appending to keep it idempotent.
-    if existing_page_id == page_id and page_is_alive(headers, page_id):
+    if wipe_first:
         print(f"    Wiping existing blocks (idempotent re-export)")
         delete_all_blocks(headers, page_id)
 
@@ -434,19 +463,20 @@ def export_file_content(headers: dict, page_id: str, filepath: Path,
     print(f"    Blocks: {len(blocks)}, appending...")
     append_blocks(headers, page_id, blocks)
     print(f"    Done: {len(blocks)} blocks uploaded")
+    return content_hash
 
 
 def export_file(headers: dict, parent_page_id: str, filepath: Path,
                 existing_page_id: Optional[str] = None,
                 link_map: Optional[Dict[str, str]] = None) -> str:
-    """Single-pass file export (back-compat wrapper).
+    """Single-pass file export (back-compat wrapper). Returns page_id.
 
     Equivalent to ensure_page_exists() + export_file_content(). Use the
     two-step variants directly when you need to build a full link_map across
-    multiple files before any content uploads.
+    multiple files before any content uploads, OR want content-hash skip.
     """
-    page_id = ensure_page_exists(headers, parent_page_id, filepath, existing_page_id)
-    export_file_content(headers, page_id, filepath, existing_page_id=existing_page_id,
+    page_id, was_reused = ensure_page_exists(headers, parent_page_id, filepath, existing_page_id)
+    export_file_content(headers, page_id, filepath, wipe_first=was_reused,
                         link_map=link_map)
     return page_id
 
@@ -618,63 +648,104 @@ def main():
 
     # Load prior mapping (if any) so we can re-use existing pages — idempotent uploads.
     # NOTION_FORCE_CREATE=1 bypasses reuse and creates fresh pages (intentional fresh export).
+    # NOTION_FORCE_UPLOAD=1 keeps page reuse but ignores content-hash skip (force re-upload).
     force_create = os.environ.get("NOTION_FORCE_CREATE", "").strip() in ("1", "true", "yes")
-    prior_mapping: Dict[str, str] = {}
+    force_upload = os.environ.get("NOTION_FORCE_UPLOAD", "").strip() in ("1", "true", "yes")
+    prior_mapping_raw: Dict = {}
     mapping_path = research_dir / "notion-mapping.json"
     if mapping_path.exists() and not force_create:
         try:
             with open(mapping_path) as f:
-                prior_mapping = json.load(f)
-            if prior_mapping:
-                print(f"Loaded prior mapping: {len(prior_mapping)} entries — will reuse alive pages")
+                prior_mapping_raw = json.load(f)
+            if prior_mapping_raw:
+                print(f"Loaded prior mapping: {len(prior_mapping_raw)} entries — will reuse alive pages")
         except Exception as e:
             print(f"  Could not read notion-mapping.json: {e}")
     if force_create:
         print("NOTION_FORCE_CREATE=1 — ignoring prior mapping, creating fresh pages")
+    if force_upload:
+        print("NOTION_FORCE_UPLOAD=1 — skipping content-hash check, re-uploading everything")
+
+    # Mapping schema accepts two shapes for back-compat:
+    #   legacy:  {"stem": "<page_id>"}                                 (string)
+    #   current: {"stem": {"page_id": "<id>", "sha256": "<hex>"}}     (dict)
+    def parse_mapping_entry(entry):
+        """Return (page_id, sha256_or_None) for either schema."""
+        if isinstance(entry, str):
+            return entry, None
+        if isinstance(entry, dict):
+            return entry.get("page_id"), entry.get("sha256")
+        return None, None
 
     # Two-pass export so cross-file links can resolve to absolute Notion URLs:
     #   Pass 1 — allocate (or reuse) a page_id for every file. Builds `link_map`.
     #   Pass 2 — read content, rewrite [foo](bar.md) → [foo](https://notion.so/<id>),
-    #            wipe-and-append blocks.
+    #            compute sha256, SKIP if (reused page AND hash matches prior),
+    #            otherwise wipe-and-append blocks.
     # Preserve unrelated entries from prior mapping (e.g. Feedback page) so they survive.
     # Only file-derived stems will be overwritten by this export.
-    mapping: Dict[str, str] = {}
+    mapping: Dict = {}
     file_stems = {f.stem for f in files}
-    for k, v in prior_mapping.items():
+    for k, v in prior_mapping_raw.items():
         if k not in file_stems:
             mapping[k] = v
 
     # Pass 1 — allocate pages and build link_map (stem → page_id).
+    # Track was_reused so Pass 2 can skip the redundant page_is_alive() call.
     print("\nPass 1: allocating pages...")
     link_map: Dict[str, str] = {}
-    existing_id_for: Dict[str, Optional[str]] = {}
+    pass2_state: Dict[str, Tuple[str, bool]] = {}  # stem → (page_id, was_reused)
+    prior_hash_for: Dict[str, Optional[str]] = {}
     for filepath in files:
-        existing_id = prior_mapping.get(filepath.stem)
-        existing_id_for[filepath.stem] = existing_id
+        prior_pid, prior_hash = parse_mapping_entry(prior_mapping_raw.get(filepath.stem))
+        prior_hash_for[filepath.stem] = prior_hash
         try:
-            page_id = ensure_page_exists(headers, parent_page_id, filepath,
-                                          existing_page_id=existing_id)
+            page_id, was_reused = ensure_page_exists(headers, parent_page_id, filepath,
+                                                      existing_page_id=prior_pid)
             link_map[filepath.stem] = page_id
-            mapping[filepath.stem] = page_id
+            pass2_state[filepath.stem] = (page_id, was_reused)
         except Exception as e:
             print(f"  ERROR allocating page for {filepath.name}: {e}")
-            if existing_id:
-                # Surface stale id so retries can heal next run.
-                mapping[filepath.stem] = existing_id
+            if prior_pid:
+                # Surface stale entry so retries can heal next run.
+                mapping[filepath.stem] = {"page_id": prior_pid, "sha256": prior_hash}
 
-    # Pass 2 — upload content, rewriting cross-links via link_map.
-    print("\nPass 2: uploading content (with cross-link rewriting)...")
+    # Pass 2 — upload content with cross-link rewriting + content-hash skip-if-unchanged.
+    print("\nPass 2: uploading content (with cross-link rewriting + hash skip)...")
+    skipped = 0
+    uploaded = 0
     for filepath in files:
-        page_id = link_map.get(filepath.stem)
-        if not page_id:
+        state = pass2_state.get(filepath.stem)
+        if state is None:
             print(f"  SKIP {filepath.name} — no page_id from Pass 1")
             continue
+        page_id, was_reused = state
         try:
-            export_file_content(headers, page_id, filepath,
-                                existing_page_id=existing_id_for.get(filepath.stem),
-                                link_map=link_map)
+            # Render once (file read + cross-link rewrite + sha256), then decide.
+            content, content_hash = render_content(filepath, link_map=link_map)
+
+            prior_hash = prior_hash_for.get(filepath.stem)
+            unchanged = (was_reused
+                         and prior_hash is not None
+                         and prior_hash == content_hash
+                         and not force_upload)
+            if unchanged:
+                print(f"  SKIP {filepath.name} — content unchanged (sha256 match)")
+                skipped += 1
+            else:
+                export_file_content(headers, page_id, filepath, wipe_first=was_reused,
+                                    rendered_content=content)
+                uploaded += 1
+
+            # Always update mapping with current page_id + hash (canonical state).
+            mapping[filepath.stem] = {"page_id": page_id, "sha256": content_hash}
         except Exception as e:
             print(f"  ERROR uploading {filepath.name}: {e}")
+            # Preserve last-known-good entry so a future retry can resume.
+            if state:
+                mapping[filepath.stem] = {"page_id": page_id, "sha256": prior_hash_for.get(filepath.stem)}
+
+    print(f"\nPass 2 summary: {uploaded} uploaded, {skipped} skipped (unchanged)")
 
     # Feedback page: reuse existing if previously created (avoid duplicates on re-uploads).
     feedback_page_id = None
