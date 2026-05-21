@@ -632,26 +632,49 @@ def main():
     if force_create:
         print("NOTION_FORCE_CREATE=1 — ignoring prior mapping, creating fresh pages")
 
-    # Export each file, capturing returned page IDs directly (no second-pass enumeration).
-    mapping: Dict[str, str] = {}
+    # Two-pass export so cross-file links can resolve to absolute Notion URLs:
+    #   Pass 1 — allocate (or reuse) a page_id for every file. Builds `link_map`.
+    #   Pass 2 — read content, rewrite [foo](bar.md) → [foo](https://notion.so/<id>),
+    #            wipe-and-append blocks.
     # Preserve unrelated entries from prior mapping (e.g. Feedback page) so they survive.
     # Only file-derived stems will be overwritten by this export.
+    mapping: Dict[str, str] = {}
     file_stems = {f.stem for f in files}
     for k, v in prior_mapping.items():
         if k not in file_stems:
             mapping[k] = v
 
+    # Pass 1 — allocate pages and build link_map (stem → page_id).
+    print("\nPass 1: allocating pages...")
+    link_map: Dict[str, str] = {}
+    existing_id_for: Dict[str, Optional[str]] = {}
     for filepath in files:
         existing_id = prior_mapping.get(filepath.stem)
+        existing_id_for[filepath.stem] = existing_id
         try:
-            page_id = export_file(headers, parent_page_id, filepath,
-                                  existing_page_id=existing_id)
+            page_id = ensure_page_exists(headers, parent_page_id, filepath,
+                                          existing_page_id=existing_id)
+            link_map[filepath.stem] = page_id
             mapping[filepath.stem] = page_id
         except Exception as e:
-            print(f"  ERROR exporting {filepath.name}: {e}")
-            # If we had a prior page, keep it in mapping so a later run can retry update.
+            print(f"  ERROR allocating page for {filepath.name}: {e}")
             if existing_id:
+                # Surface stale id so retries can heal next run.
                 mapping[filepath.stem] = existing_id
+
+    # Pass 2 — upload content, rewriting cross-links via link_map.
+    print("\nPass 2: uploading content (with cross-link rewriting)...")
+    for filepath in files:
+        page_id = link_map.get(filepath.stem)
+        if not page_id:
+            print(f"  SKIP {filepath.name} — no page_id from Pass 1")
+            continue
+        try:
+            export_file_content(headers, page_id, filepath,
+                                existing_page_id=existing_id_for.get(filepath.stem),
+                                link_map=link_map)
+        except Exception as e:
+            print(f"  ERROR uploading {filepath.name}: {e}")
 
     # Feedback page: reuse existing if previously created (avoid duplicates on re-uploads).
     feedback_page_id = None

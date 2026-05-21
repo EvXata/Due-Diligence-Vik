@@ -53,6 +53,31 @@ BCG Foundation: [USING EXISTING / RUNNING NOW]
 
 ---
 
+## Step 0.4 — Initialize Progress Tracker (MANDATORY)
+
+**Why this exists:** Without explicit per-phase tasks, the multi-hour DD pipeline gives the user zero visibility into where it is in the run. The system reminder is forced to nudge ("task tools haven't been used") multiple times mid-engagement. Initialize once up-front and update on every phase transition — costs ~30 seconds at start and pays off across the full run.
+
+**Action:** Before running Step 0.5 (Pre-Flight), call `TaskCreate` for each phase below. Then `TaskUpdate` each task to `in_progress` when launching the phase and `completed` when it finishes (phase-gate passes).
+
+Default phase set (adjust if `--dir` skips BCG foundation):
+
+```
+1. Phase -1: bcg-researcher → company-brief.md
+2. Phase 0: Market mapping (parallel: market-mapper + data-scientist)
+3. Phase 1: Segment analysis + domain expert (parallel)
+4. Phase 1.5 / DD-1 fused: fact-checker + market-validator + hypothesis-tester (parallel)
+5. Phase 2 + DD-2 fused: portfolio + risk-analyst + red-team (parallel)
+6. Phase DD-3a: Master decision-first report
+7. Phase DD-3b: Summary + Legal + Insight Booster (parallel)
+8. Phase DD-4: Notion export
+```
+
+If `--investor-profile` is set, add an extra task **Phase DD-3c: Investor-profile synthesis** between DD-3b and DD-4.
+
+Do **not** create a task for Step 0.5 (Pre-Flight) — it's <90s and inline.
+
+---
+
 ## Step 0.5 — Pre-Flight Company State Check (MANDATORY, added after Cursor DD bug B7 post-mortem)
 
 **Why this exists:** On Cursor DD (19.05.2026), the orchestrator started with $30B asking-price assumption (extrapolated from Series C $9.9B trajectory). Phase -1 researcher then revealed actual market signal was **$50B Series E in talks** (TechCrunch April 2026). Engagement log had to be retroactively edited, and the Partner Brief published to the user was inaccurate. Worse: if `--asking-price` had been hardcoded and never revisited, hypothesis-tester would have tested the wrong H-V1 claim.
