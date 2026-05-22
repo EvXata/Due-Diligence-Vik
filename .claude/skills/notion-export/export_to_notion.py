@@ -776,12 +776,32 @@ def parse_engagement_metadata(research_dir: Path) -> dict:
 
 
 def detect_engagement_type(files: list) -> str:
-    """Return 'dd' if DD artefacts present, 'bcg' if BCG-only, 'generic' otherwise."""
+    """Return engagement type based on which artefacts are present.
+
+    Returns one of:
+      'dd'       — Strategic Due Diligence (dd-decision-first / dd-short)
+      'bcg'      — BCG/McKinsey-style strategic analysis (final-report / portfolio / gtm-playbook)
+      'pmf'      — Product-Market Fit discovery (icp-* / fit-portfolio / traction-* / cohort-*)
+      'strategy' — Generic strategy work (customer-discovery / market-mapping / moat-xray)
+      'generic'  — Fallback (BCG layout, mostly empty slots)
+    """
     names = {f.name for f in files}
+    stems = {f.stem for f in files}
+
     if "dd-decision-first.md" in names or "dd-short.md" in names:
         return "dd"
     if any(n in names for n in ("final-report.md", "portfolio.md", "gtm-playbook.md")):
         return "bcg"
+    # PMF detection: any pmf- agent output OR distinctive PMF artefacts
+    if (any(s.startswith(("icp-", "pmf-", "cohort-", "traction-", "fit-")) for s in stems)
+            or "fit-portfolio.md" in names
+            or "pull-map.md" in names
+            or "signal-audit.md" in names):
+        return "pmf"
+    # Strategy detection: distinctive strategy artefacts
+    if any(s in stems for s in ("customer-discovery", "market-mapping", "moat-xray",
+                                 "strategy-insights", "strategic-plan", "author-bet")):
+        return "strategy"
     return "generic"
 
 
@@ -936,6 +956,25 @@ _PRETTY_TITLES = {
     "gtm-playbook":      "🎯 GTM Playbook",
     "creative-brief":    "💡 Creative Brief",
     "contact-universe":  "👥 Contact Universe",
+    # PMF Discovery
+    "fit-portfolio":     "🎯 Fit Portfolio — ICP × Channel matrix",
+    "pull-map":          "🧲 Pull Map — Demand signals",
+    "signal-audit":      "🔍 Signal Audit — Validation evidence",
+    "icp-analysis":      "👥 ICP Analysis",
+    "icp-output":        "👥 ICP Output",
+    "channel-pricing":   "💰 Channel & Pricing",
+    "cohort-analysis":   "📈 Cohort Analysis",
+    "traction-research": "📊 Traction Research",
+    "references":        "🔗 References & Comparables",
+    "moat-xray":         "🏰 Moat X-Ray",
+    "pmf-report":        "📕 PMF Report — PRIMARY",
+    "final-pmf-report":  "📕 Final PMF Report — PRIMARY",
+    # Strategy (StrategyHero / personal-strategy / generic)
+    "customer-discovery": "👥 Customer Discovery",
+    "market-mapping":    "🗺️ Market Mapping",
+    "strategy-insights": "💡 Strategy Insights",
+    "strategic-plan":    "📕 Strategic Plan — PRIMARY",
+    "author-bet":        "🎲 Author Bet",
 }
 
 
@@ -1242,6 +1281,244 @@ def build_bcg_cover_blocks(meta: dict, link_map: Dict[str, str],
     return blocks
 
 
+def build_pmf_cover_blocks(meta: dict, link_map: Dict[str, str],
+                            feedback_page_id: Optional[str]) -> list:
+    """Build the fixed PMF Discovery cover (24 blocks).
+
+    Tailored to pmf-discovery / pmf-navigator output: ICP analysis, fit portfolio,
+    channel & pricing, cohort + traction research, pull/signal validation. No
+    verdict callout — PMF is iterative discovery, not a binary decision.
+    """
+    company = meta.get("company", "?")
+    date_str = meta.get("date", "")
+    sub = {k: _page_url(v) for k, v in (link_map or {}).items()}
+    fb_url = _page_url(feedback_page_id) if feedback_page_id else None
+
+    blocks = []
+
+    # 1. Title
+    blocks.append(_h1(f"{company} — Product-Market Fit Discovery"))
+
+    # 2. Metadata
+    meta_parts = []
+    if date_str:
+        meta_parts.append(f"Дата: {date_str}")
+    meta_parts.append("Подготовлено: Xata&Co PMF Team")
+    blocks.append(_para([_text("  ·  ".join(meta_parts), italic=True, color="gray")]))
+
+    # 3. Mode callout
+    blocks.append(_callout(
+        [_text("PMF Discovery Engagement\n", bold=True),
+         _text("ICP refinement · Channel-pricing fit · Cohort + traction validation")],
+        emoji="🎯", color="blue_background"))
+
+    # 4. Divider
+    blocks.append(_divider())
+
+    # 5. Primary Deliverables H2
+    blocks.append(_h2("Primary Deliverables"))
+
+    # 6-9. Primary bullets (4 fixed)
+    primary = [
+        ("final-pmf-report", "📕  Final PMF Report",     "Synthesized findings + recommendations"),
+        ("fit-portfolio",    "🎯  Fit Portfolio",         "ICP × Channel × Pricing matrix"),
+        ("icp-analysis",     "👥  ICP Analysis",          "Segments, JTBD, decision-makers"),
+        ("channel-pricing",  "💰  Channel & Pricing",     "GTM channels, pricing tiers"),
+    ]
+    for stem, label, desc in primary:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 10. Divider
+    blocks.append(_divider())
+
+    # 11. Validation Layer H2
+    blocks.append(_h2("Validation Layer"))
+
+    # 12-15. Validation bullets (4 fixed)
+    validation = [
+        ("cohort-analysis",   "📈  Cohort Analysis",      "Retention, expansion, churn drivers"),
+        ("traction-research", "📊  Traction Research",    "Comparable case studies, benchmarks"),
+        ("signal-audit",      "🔍  Signal Audit",         "Demand signals, market evidence"),
+        ("pull-map",          "🧲  Pull Map",             "Who is actively reaching for the solution"),
+    ]
+    for stem, label, desc in validation:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 16. Divider
+    blocks.append(_divider())
+
+    # 17. Foundations H2
+    blocks.append(_h2("Foundations"))
+
+    # 18-21. Foundations bullets (4 fixed)
+    foundations = [
+        ("domain-expert-input", "📁  Domain Expert Input", "Insider perspective"),
+        ("references",          "🔗  References",          "Comparables, prior art"),
+        ("moat-xray",           "🏰  Moat X-Ray",          "Defensibility analysis"),
+        ("company-brief",       "📁  Company Brief",       "Raw verified data"),
+    ]
+    for stem, label, desc in foundations:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 22. Divider
+    blocks.append(_divider())
+
+    # 23. Methodology footer
+    blocks.append(_callout([
+        _text("Confidential — ", bold=True),
+        _text("Methodology: PMF Discovery (ICP × JTBD × Pull)  ·  "
+              "Cohort science  ·  Channel-pricing fit  ·  Signal-driven iteration"),
+    ], emoji="🔒", color="gray_background"))
+
+    # 24. Feedback link
+    fb_rt = [_text("Use the ", italic=True, color="gray")]
+    if fb_url:
+        fb_rt.append(_link("📋 Feedback page", fb_url, bold=True, italic=True, color="gray"))
+    else:
+        fb_rt.append(_text("📋 Feedback page", bold=True, italic=True, color="gray"))
+    fb_rt.append(_text(" to send corrections — processed within 1 hour.",
+                       italic=True, color="gray"))
+    blocks.append(_para(fb_rt))
+
+    return blocks
+
+
+def build_strategy_cover_blocks(meta: dict, link_map: Dict[str, str],
+                                feedback_page_id: Optional[str]) -> list:
+    """Build the fixed strategy-engagement cover (22 blocks).
+
+    Tailored to StrategyHero / personal-strategy-agent style output:
+    customer discovery, market mapping, moat x-ray, strategy insights,
+    strategic plan. No formal verdict — strategy is option-driven.
+    """
+    company = meta.get("company", "?")
+    date_str = meta.get("date", "")
+    sub = {k: _page_url(v) for k, v in (link_map or {}).items()}
+    fb_url = _page_url(feedback_page_id) if feedback_page_id else None
+
+    blocks = []
+
+    # 1. Title
+    blocks.append(_h1(f"{company} — Strategic Plan"))
+
+    # 2. Metadata
+    meta_parts = []
+    if date_str:
+        meta_parts.append(f"Дата: {date_str}")
+    meta_parts.append("Подготовлено: Xata&Co Strategy Team")
+    blocks.append(_para([_text("  ·  ".join(meta_parts), italic=True, color="gray")]))
+
+    # 3. Mode callout
+    blocks.append(_callout(
+        [_text("Strategy Engagement\n", bold=True),
+         _text("Customer discovery · Market mapping · Moat analysis · Options selection")],
+        emoji="🎲", color="purple_background"))
+
+    # 4. Divider
+    blocks.append(_divider())
+
+    # 5. Primary Deliverables H2
+    blocks.append(_h2("Primary Deliverables"))
+
+    # 6-8. Primary bullets (3 fixed)
+    primary = [
+        ("strategic-plan",     "📕  Strategic Plan",      "Chosen options, sequencing, bets"),
+        ("strategy-insights",  "💡  Strategy Insights",   "Non-obvious findings"),
+        ("market-mapping",     "🗺️  Market Mapping",      "Segments, competitors, white space"),
+    ]
+    for stem, label, desc in primary:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 9. Divider
+    blocks.append(_divider())
+
+    # 10. Discovery Layer H2
+    blocks.append(_h2("Discovery Layer"))
+
+    # 11-13. Discovery bullets (3 fixed)
+    discovery = [
+        ("customer-discovery", "👥  Customer Discovery",  "JTBD, DMU, pain points"),
+        ("moat-xray",          "🏰  Moat X-Ray",          "VRIO, defensibility"),
+        ("author-bet",         "🎲  Author Bet",          "Founder/author thesis"),
+    ]
+    for stem, label, desc in discovery:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 14. Divider
+    blocks.append(_divider())
+
+    # 15. Foundations H2
+    blocks.append(_h2("Foundations"))
+
+    # 16-19. Foundations bullets (4 fixed)
+    foundations = [
+        ("company-brief",       "📁  Company Brief",       "Verified raw data"),
+        ("domain-expert-input", "📁  Domain Expert Input", "Insider perspective"),
+        ("validation-report",   "📁  Validation Report",   "Fact-check audit"),
+        ("contact-universe",    "👥  Contact Universe",    "Decision-maker map"),
+    ]
+    for stem, label, desc in foundations:
+        url = sub.get(stem)
+        if url:
+            rt = [_link(label, url, bold=True), _text(f"  ·  {desc}", color="gray")]
+        else:
+            rt = [_text(label, bold=True, color="gray"),
+                  _text("  ·  (not generated)", color="gray", italic=True)]
+        blocks.append(_bullet(rt))
+
+    # 20. Divider
+    blocks.append(_divider())
+
+    # 21. Methodology footer
+    blocks.append(_callout([
+        _text("Confidential — ", bold=True),
+        _text("Methodology: BCG 5 Lenses (Description / Advantage / Future / Options / Selection)"
+              "  ·  Pyramid Principle  ·  Option-driven strategy"),
+    ], emoji="🔒", color="gray_background"))
+
+    # 22. Feedback link
+    fb_rt = [_text("Use the ", italic=True, color="gray")]
+    if fb_url:
+        fb_rt.append(_link("📋 Feedback page", fb_url, bold=True, italic=True, color="gray"))
+    else:
+        fb_rt.append(_text("📋 Feedback page", bold=True, italic=True, color="gray"))
+    fb_rt.append(_text(" to send corrections — processed within 1 hour.",
+                       italic=True, color="gray"))
+    blocks.append(_para(fb_rt))
+
+    return blocks
+
+
 def build_cover_blocks_for(engagement_type: str, meta: dict, verdict_data: dict,
                             link_map: Dict[str, str], feedback_page_id: Optional[str]) -> list:
     """Dispatch to the right cover builder based on engagement type."""
@@ -1249,6 +1526,10 @@ def build_cover_blocks_for(engagement_type: str, meta: dict, verdict_data: dict,
         return build_dd_cover_blocks(meta, verdict_data, link_map, feedback_page_id)
     if engagement_type == "bcg":
         return build_bcg_cover_blocks(meta, link_map, feedback_page_id)
+    if engagement_type == "pmf":
+        return build_pmf_cover_blocks(meta, link_map, feedback_page_id)
+    if engagement_type == "strategy":
+        return build_strategy_cover_blocks(meta, link_map, feedback_page_id)
     # Generic fallback — reuse BCG layout (minimal harm if some links are missing)
     return build_bcg_cover_blocks(meta, link_map, feedback_page_id)
 
