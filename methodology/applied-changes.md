@@ -198,3 +198,21 @@
 
 **Companion:** spec patched в methodology/pipeline91.json под `4_STRATEGY_FINANCIAL.content` + `required_fields_per_stage.4_STRATEGY_FINANCIAL.ceiling_check`
 **Expected improvement:** Zero TAM-ceiling breaches passed to portfolio.md / final-report.md без resolved status начиная со следующего engagement'а
+
+---
+
+## 2026-05-25 — Applied: TAM Provenance Classification (v9.1 P3 — runtime)
+
+**Agent:** bcg-market-mapper.md
+**Source:** Pipeline v9.1.0 release (P3 runtime alignment) — pre-existing Tier 1/2/3 hierarchy lacked explicit `self_derived` category
+**Change:** Дополнен блок "Иерархия источников для TAM" новой v9.1 P3 секцией "TAM Provenance Classification (BLOCKING)":
+
+- Обязательная классификация tam_provenance ∈ {tier1_sourced, tier2_sourced, self_derived} per segment
+- Когда self_derived → warning `⚠️ TAM — NO INDEPENDENT SOURCE` должен быть в САМОМ ВЕРХУ TAM-блока (не в footnote, не в appendix), с указанием методики и явной propagation note
+- output schema additions: `tam_provenance`, `tam_warning_at_top: bool`
+- V1 validator AUTO-REJECTS если self_derived TAM без top-level warning
+
+**Rationale:** Pre-existing Tier 1/2/3 иерархия покрывала случай "источник существует но низкого качества", но не покрывала случай "я сам собрал TAM из bottom-up или triangulation" — это самый опасный класс, потому что отсутствие источника часто маскируется красиво форматированным числом. v9.1 P3 закрывает этот gap явным provenance flag + top-of-block warning.
+
+**Companion:** spec already patched in methodology/pipeline91.json (1S0_segmenter.tam_provenance, 1B_industry_economics.tam_warning_at_top, 6F_market_map_data warning preservation)
+**Expected improvement:** Zero self-derived TAMs presented as if independently sourced; downstream revenue targets always inherit explicit uncertainty flag

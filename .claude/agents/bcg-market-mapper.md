@@ -91,6 +91,40 @@ model: sonnet
 - Tier 3 (только как контекст bull case): MarkSpark, Verified Market Research, Business Research Insights и аналогичные агрегаторы
 - Если Tier 3 оценка более чем в 3x превышает Tier 1 по одному рынку и году — маркируй Tier 3 как "агрессивный bull case", а Tier 1 используй как primary
 
+**v9.1 P3 — TAM Provenance Classification (BLOCKING для каждого сегмента):**
+
+Для каждого сегмента классифицируй `tam_provenance` ОДНИМ из трёх значений:
+- `tier1_sourced` — TAM опубликован как named line item Tier-1 источником (Goldman/Morgan/IDC/Gartner/Canalys/SEMI/McKinsey/BCG/Bain/government)
+- `tier2_sourced` — TAM опубликован Tier-2 источником (Bloomberg/Reuters/FT/WSJ/Forrester/Counterpoint/Grand View/Mordor/отраслевая пресса)
+- `self_derived` — ТЫ сам сконструировал TAM (bottom-up из своих допущений, top-down из broader market × estimated share ratio, multi-source триангуляция, или Tier-3 агрегатор × estimated ratio)
+
+**Когда `tam_provenance == "self_derived"` (ОБЯЗАТЕЛЬНО):**
+- Размести в САМОМ ВЕРХУ TAM-блока сегмента (НЕ в footnote, НЕ в appendix) предупреждение:
+```
+> ⚠️ TAM — NO INDEPENDENT SOURCE
+> Этот TAM рассчитан самостоятельно методом: <конкретная методика>.
+> Все downstream revenue targets, ссылающиеся на этот TAM, наследуют ту же неопределённость.
+```
+- Укажи `tam_warning_at_top: true` в output schema сегмента
+- Fact-checker (V1) AUTO-REJECT'нет, если warning размещён в footnote/appendix
+
+**Пример для сегмента где TAM собран комбинацией Tier-3 × share ratio:**
+```
+## IoT Foundry Segment — TAM
+
+> ⚠️ TAM — NO INDEPENDENT SOURCE
+> TAM $15-22B рассчитан как: Business Research Insights "Overall IoT Hardware" ($180B) ×
+> предполагаемая foundry-attributable доля (8-12%, наша оценка из triangulation TSMC IoT
+> revenue + UMC IoT mix + GFS IoT mix). Все downstream revenue targets с этим TAM несут
+> ту же неопределённость.
+
+TAM: $15-22B (self_derived)
+CAGR: 14-18% (Business Research Insights 2024)
+...
+```
+
+**ЗАПРЕЩЕНО:** размещать warning в footnote ("¹ оценка") или в speaker notes. ЗАПРЕЩЕНО опускать warning, потому что "методика очевидна". V1 validator BLOCKS finalization market-map.md если найден self_derived TAM без top-level warning.
+
 ### B. Позиция компании
 
 - Выручка компании в сегменте (абсолютная + % от общей)
