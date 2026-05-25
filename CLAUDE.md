@@ -490,6 +490,38 @@ bcg-audience-scout  → contact-universe.md
 
 **Pyramid Principle:** All outputs lead with the conclusion, then arguments, then data.
 
+## Publishing & Export — Xataco-Output Toolkit
+
+This project produces research (`research/<engagement>/`) but does **NOT** own publishing. All Notion / Vercel / PDF exports go through the standalone **Xataco-Output toolkit** at `/Users/cofounder/Documents/Projects/output/` — three tools, one canonical source of truth for brand + Notion token + Vercel project.
+
+| Tool | Script | Purpose |
+|---|---|---|
+| **Vercel publish** | `output/publish_reports.py` | Static HTML hub at `xata-reports.vercel.app`; each engagement = `/<slug>/` with sidebar nav + `all.html` (agent-readable single-fetch). Pure stdlib, no pip deps. |
+| **PDF** | `output/pdf-report/render_report.py` | Bridgewater-style A4 in Xata&co brand. Modes: `generic` / `dd` (verdict badge) / `bcg` (MBB matrix). |
+| **Notion** | `output/notion-export/export_to_notion.py` | Parent page per engagement + child page per `.md`. `NOTION_FILES_WHITELIST` env to subset. |
+
+**Standard invocations:**
+
+```bash
+# Vercel publish (whole engagement folder → hub)
+python3 /Users/cofounder/Documents/Projects/output/publish_reports.py \
+  research/<eng>/ --title "<Engagement title>"
+
+# PDF (single file → next to source)
+python3 /Users/cofounder/Documents/Projects/output/pdf-report/render_report.py \
+  research/<eng>/dd-decision-first.md --mode dd --company "<Name>"
+
+# Notion (whitelisted subset of folder)
+set -a; source /Users/cofounder/Documents/Projects/output/.env; set +a
+NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md" \
+  python3 /Users/cofounder/Documents/Projects/output/notion-export/export_to_notion.py \
+  research/<eng>/
+```
+
+**Do NOT use** the local copies under `.claude/skills/notion-export/` and `.claude/skills/pdf-report/` — those are stale forks. Phase DD-4 of the `/dd` skill still invokes the local Notion copy; this is a known wiring drift and will be retargeted to the Xataco-Output toolkit on the next /dd update.
+
+**Why two locations:** The output/ toolkit has its own `.env` (with the working `NOTION_TOKEN` for the shared root page), its own Vercel project auth (`xata-reports`), and bundles Xata&co brand CSS. Centralizing exports there keeps DD MarketStrat focused on the research pipeline without coupling to deployment infrastructure.
+
 ## Environment Setup
 
 Copy `.env.example` → `.env` and fill in:
