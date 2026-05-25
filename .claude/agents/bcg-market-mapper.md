@@ -157,6 +157,36 @@ CAGR: 14-18% (Business Research Insights 2024)
 
 В частности: заявления о завершении сделок M&A должны быть верифицированы по SEC filings (Form S-4, 8-K) или пресс-релизам компании, подтверждающим закрытие сделки, а не только по новостям о переговорах или объявленном намерении.
 
+**Перенесённые даты — DUAL CITATION (added after T-Bank v9.1 acceptance test 25.05.2026):**
+
+Если событие имеет ДВЕ зафиксированных даты (initially announced + rescheduled-to) — ОБЯЗАТЕЛЬНО цитируй обе с явными тегами:
+
+```
+- Currently scheduled: [date B, DD.MM.YYYY]   [URL + дата источника]
+- Rescheduled from: [date A, DD.MM.YYYY]      [URL + дата исходного анонса]
+- Status: ⚠️ Verified via [N] independent sources / ⚠️ Date pending IR confirmation
+```
+
+ЗАПРЕЩЕНО:
+- Использовать только rescheduled-to date (теряется аудит-trail; downstream agents не видят что дата была перенесена → не могут отследить причину переноса как стресс-сигнал)
+- Использовать только первоначальную дату (фактологически неверно)
+- Сглаживать в "Q4 2026" / "осень 2026" / "Sep 2026" (vague — теряется специфичность для cash-flow timing)
+
+Это правило особенно важно для:
+- M&A shareholder votes (могут переноситься регулятором или акционерами)
+- IPO dates (переносы = сигнал market timing / readiness issues)
+- Regulatory filings deadlines (переносы регулятором = либо relief, либо сигнал escalation)
+- Earnings release dates (перенос = potential restatement / governance issue)
+
+Пример (T-Bank v9.1 test, verbatim):
+
+```
+Точка Bank голосование акционеров (консолидация):
+  - Currently scheduled: 18 сентября 2026 (Interfax + InvestFuture, 24.04.2026)
+  - Rescheduled from: 5 июня 2026 (Vedomosti 03.02.2026)
+  - Status: ⚠️ 2-source verified; pending IR confirmation
+```
+
 ### D. Эволюция сегмента
 
 - Ключевые эволюционные силы (2–3)

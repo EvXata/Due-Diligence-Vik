@@ -760,18 +760,38 @@ def normalize_mapping(prior_mapping_raw: dict) -> dict:
 def parse_engagement_metadata(research_dir: Path) -> dict:
     """Extract company name, date, fast-mode flag from research_dir name.
 
+    Date-aware split — handles multi-hyphen company slugs (e.g. t-bank, t-mobile, jp-morgan).
+    Date pattern at end of name (DD.MM.YYYY) is the canonical anchor; everything before is company.
+
     Examples:
-        dydx-19.05.2026          → company="DYDX",      date="19.05.2026"
+        dydx-19.05.2026           → company="DYDX",      date="19.05.2026"
         microsoft-21.05.2026-fast → company="Microsoft", date="21.05.2026", is_fast=True
-        tsmc-30.03.2026          → company="TSMC",      date="30.03.2026"
+        tsmc-30.03.2026           → company="TSMC",      date="30.03.2026"
+        t-bank-25.05.2026         → company="T-Bank",    date="25.05.2026"
+        jp-morgan-15.06.2026      → company="JP-Morgan", date="15.06.2026"
     """
+    import re
     name = research_dir.name
     is_fast = name.endswith("-fast")
     stripped = name[:-5] if is_fast else name
-    parts = stripped.split("-", 1)
-    company_raw = parts[0]
-    company = company_raw.upper() if len(company_raw) <= 4 else company_raw.capitalize()
-    date_part = parts[1] if len(parts) > 1 else ""
+
+    # Date-aware split: find trailing DD.MM.YYYY (or D.M.YYYY) preceded by a dash
+    m = re.search(r"-(\d{1,2}\.\d{1,2}\.\d{4})$", stripped)
+    if m:
+        company_raw = stripped[: m.start()]
+        date_part = m.group(1)
+    else:
+        # Fallback to legacy first-hyphen split when no date pattern detected
+        parts = stripped.split("-", 1)
+        company_raw = parts[0]
+        date_part = parts[1] if len(parts) > 1 else ""
+
+    # Casing: tickers (≤4 chars, no internal hyphen) UPPERCASE; multi-word capitalize-each-word
+    if "-" in company_raw:
+        company = "-".join(w.capitalize() if len(w) > 2 else w.upper() for w in company_raw.split("-"))
+    else:
+        company = company_raw.upper() if len(company_raw) <= 4 else company_raw.capitalize()
+
     return {"company": company, "date": date_part, "is_fast": is_fast}
 
 
@@ -1761,11 +1781,11 @@ def main():
         if not root_page_id:
             print("Error: set either NOTION_PARENT_PAGE_ID or NOTION_MBB_ROOT_PAGE_ID in .env")
             sys.exit(1)
-        dir_name = research_dir.name  # e.g. tsmc-30.03.2026
-        # Build title: "Tsmc — MBB Engagement (30.03.2026)"
-        parts = dir_name.split("-", 1)
-        company = parts[0].upper() if len(parts[0]) <= 4 else parts[0].capitalize()
-        date_part = parts[1] if len(parts) > 1 else dir_name
+        # Build title via the same date-aware parser used by parse_engagement_metadata.
+        # Handles multi-hyphen company slugs (t-bank, jp-morgan, etc.) correctly.
+        meta = parse_engagement_metadata(research_dir)
+        company = meta["company"] or research_dir.name
+        date_part = meta["date"] or research_dir.name
         engagement_title = f"{company} — MBB Engagement ({date_part})"
         print(f"Creating engagement page: '{engagement_title}' under root {root_page_id}")
         parent_page_id = create_page(headers, root_page_id, engagement_title)

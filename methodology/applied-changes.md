@@ -216,3 +216,43 @@
 
 **Companion:** spec already patched in methodology/pipeline91.json (1S0_segmenter.tam_provenance, 1B_industry_economics.tam_warning_at_top, 6F_market_map_data warning preservation)
 **Expected improvement:** Zero self-derived TAMs presented as if independently sourced; downstream revenue targets always inherit explicit uncertainty flag
+
+---
+
+## 2026-05-25 — T-Bank v9.1 acceptance-test bug fixes (4 bugs)
+
+**Source:** T-Bank DD engagement 25.05.2026 (v9.1 acceptance test) post-mortem
+**Engagement type:** Full Strategic DD, completed locally in 64 min (target ≤90 min)
+**Bugs surfaced and fixed:** 4 (1 HIGH path-config, 1 MEDIUM Notion parser, 2 MEDIUM agent-rule gaps)
+
+### Bug 1: Stale Due-Diligence-Vik hardcoded paths (HIGH)
+**Files patched:** 5 (30 path refs total)
+- `.claude/skills/dd/SKILL.md` (14 refs)
+- `.claude/skills/dd-short/SKILL.md` (8 refs)
+- `.claude/skills/dd-short-batch/SKILL.md` (5 refs)
+- `.claude/settings.local.json` (15 refs)
+- `.claude/agents/bcg-researcher.md` (1 ref)
+- `methodology/improvement-log.md` (1 ref)
+**Change:** Replaced both legacy variants `/Users/cofounder/Documents/Projects/Due-Diligence-Vik/` AND `/Users/maximpuda/Projects/Due-Diligence-Vik/` with current `/Users/cofounder/Documents/Projects/DD MarketStrat/`.
+**Rationale:** Project was renamed; legacy paths broke phase-gate.sh invocations and Notion-export script paths in 3 skills. Caused manual workarounds during T-Bank test run.
+
+### Bug 2: Notion engagement-title parser (MEDIUM)
+**File:** `.claude/skills/notion-export/export_to_notion.py`
+**Locations:** 2 (parse_engagement_metadata + main block)
+**Change:** Replaced `dir_name.split("-", 1)` first-hyphen split with date-pattern regex `r"-(\d{1,2}\.\d{1,2}\.\d{4})$"` that anchors on trailing DD.MM.YYYY and pulls company from the prefix. Multi-hyphen company slugs now resolve correctly.
+**Verified cases (9):** dydx, microsoft (+fast), tsmc, t-bank, jp-morgan, t-bank (+fast), alphabet, globalfoundries, general-electric — all parse correctly. Bug case `t-bank-25.05.2026` → "T-Bank — MBB Engagement (25.05.2026)" (was: "T — MBB Engagement (bank-25.05.2026)").
+**Rationale:** T-Bank engagement created Notion page with corrupted title; would corrupt every future multi-hyphen company (t-mobile, jp-morgan, general-electric, etc.).
+
+### Bug 3: bcg-researcher rescheduled-from rule (MEDIUM)
+**File:** `.claude/agents/bcg-researcher.md`
+**Change:** Added "Rescheduled Event Dates — MANDATORY DUAL-CITATION" section. When prompt contains hard-constraint correction of form "stated [A], VERIFIED ACTUAL = [B] (rescheduled)" — agent MUST cite BOTH dates with explicit tags, NOT consolidate to single date or vague phrasing.
+**T-Bank evidence:** Despite explicit hard-constraint correction `Точка vote: stated 5.06.2026, actual = 18.09.2026 (rescheduled)`, agent used "Sep 2026" generically. Audit trail lost; downstream stress-signal (the fact of rescheduling) dropped.
+**Required format documented with verbatim T-Bank example.**
+
+### Bug 4: bcg-market-mapper Change 7 dual-date tightening (MEDIUM)
+**File:** `.claude/agents/bcg-market-mapper.md`
+**Change:** Extended existing "СТАТУС КОРПОРАТИВНЫХ СОБЫТИЙ" protocol with "Перенесённые даты — DUAL CITATION" subsection. Explicit prohibitions: do NOT use rescheduled-to-only, do NOT use original-only, do NOT smooth to "Q4/осень/Sep". List of event classes where this matters (M&A votes, IPO, regulatory filings, earnings releases).
+**T-Bank evidence:** Market-mapper DID get this right in T-Bank run (cited both 5.06.2026 + 18.09.2026) — the rule existed implicitly. Tightening makes it explicit so future agents don't regress when the implicit signal is absent.
+
+### Test status
+All 4 fixes applied. No regressions detected (re-ran parser unit tests with 9 cases). Spec-side v9.1 patches unchanged (sha256 204dfd45… preserved). Next engagement will exercise Bug 3 fix in the wild — verification deferred to that run.

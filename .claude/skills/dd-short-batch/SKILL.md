@@ -100,7 +100,7 @@ Output: research/batch-[DATE]/
 
 ```bash
 DATE=$(date +%d.%m.%Y-%H%M)
-BATCH_DIR="/Users/maximpuda/Projects/Due-Diligence-Vik/research/batch-${DATE}"
+BATCH_DIR="/Users/cofounder/Documents/Projects/DD MarketStrat/research/batch-${DATE}"
 mkdir -p "$BATCH_DIR"
 
 # Create per-company subdirectory using the slug from Step 1
@@ -267,7 +267,7 @@ sibling `dd-short.pdf` so it is forward-shareable as a single attachment.
 ```bash
 for SLUG in [list of succeeded slugs in this wave]; do
   if [ -s "$BATCH_DIR/$SLUG/dd-short.md" ]; then
-    python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/pdf-report/render_report.py \
+    python3 /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/pdf-report/render_report.py \
       "$BATCH_DIR/$SLUG/dd-short.md" \
       --mode dd \
       --company "$(echo "$SLUG" | sed -E 's/[-_]/ /g; s/\b./\u&/g')" \
@@ -385,16 +385,16 @@ If `NOTION_TOKEN` and `NOTION_MBB_ROOT_PAGE_ID` are set in `.env`, offer:
 If user confirms, create a parent page `Strategic DD Snapshots — [DATE]` then upload `batch-summary.md` plus each `[slug]/dd-short.md`. Use `notion-export` script with a custom invocation per company:
 
 ```bash
-set -a; source /Users/maximpuda/Projects/Due-Diligence-Vik/.env; set +a
+set -a; source /Users/cofounder/Documents/Projects/DD MarketStrat/.env; set +a
 
 # Upload batch summary first
 NOTION_FILES_WHITELIST="batch-summary.md" \
-  python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "[BATCH_DIR]"
+  python3 /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/notion-export/export_to_notion.py "[BATCH_DIR]"
 
 # Then each company report
 for SLUG in [succeeded slugs]; do
   NOTION_FILES_WHITELIST="dd-short.md" \
-    python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "[BATCH_DIR]/$SLUG"
+    python3 /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/notion-export/export_to_notion.py "[BATCH_DIR]/$SLUG"
 done
 ```
 

@@ -34,8 +34,8 @@ Parse arguments:
 ```bash
 COMPANY=$(echo "COMPANY_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
 DATE=$(date +%d.%m.%Y)
-mkdir -p "/Users/cofounder/Documents/Projects/Due-Diligence-Vik/research/${COMPANY}-${DATE}"
-echo "/Users/cofounder/Documents/Projects/Due-Diligence-Vik/research/${COMPANY}-${DATE}"
+mkdir -p "/Users/cofounder/Documents/Projects/DD MarketStrat/research/${COMPANY}-${DATE}"
+echo "/Users/cofounder/Documents/Projects/DD MarketStrat/research/${COMPANY}-${DATE}"
 ```
 
 **If `--dir` IS provided:** Use that path as OUTPUT_DIR. Verify it exists and contains `final-report.md` or `portfolio.md`.
@@ -236,7 +236,7 @@ If any are missing, **retry the responsible agent once with tighter caps** (see
 
 **Gate command (run after every phase):**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   <phase-name> "$OUTPUT_DIR" [segment-slugs]
 ```
 
@@ -288,7 +288,7 @@ Progress: `📚 BCG Phase -1 — Data Collection (bcg-researcher) → company-br
 
 **🛡️ Gate after completion:**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   phase-minus-1 "$OUTPUT_DIR"
 ```
 If FAIL → retry bcg-researcher once with caps from `tight-retry-template.md`. Then read `company-brief.md`. Output:
@@ -356,7 +356,7 @@ Progress: `🗺️ BCG Phase 0 — Market Mapping (parallel: bcg-market-mapper +
 
 **🛡️ Gate after both complete:**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   phase-0 "$OUTPUT_DIR"
 ```
 If FAIL on `market-map.md` (blocking) → retry bcg-market-mapper with tighter caps.
@@ -609,13 +609,13 @@ and DD-2 agents will read this digest instead of re-reading all 3 full files.
 
 **🛡️ Gate before advancing:**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   phase-1.5 "$OUTPUT_DIR"
 ```
 If FAIL → retry the responsible agent(s) once with caps from `tight-retry-template.md`.
 Also gate Phase 1 (segment files) here if you didn't already:
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   phase-1 "$OUTPUT_DIR" "<comma-separated-segment-slugs>"
 ```
 
@@ -737,7 +737,7 @@ Progress:
 
 **🛡️ Gate after all 3 complete:**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   phase-2-dd-2 "$OUTPUT_DIR"
 ```
 If FAIL on any of `portfolio.md`, `dd-risk-matrix.md`, `dd-red-team.md`:
@@ -841,7 +841,7 @@ Progress:
 
 **🛡️ Gate after completion:**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   phase-dd-3a "$OUTPUT_DIR"
 ```
 If FAIL → `dd-decision-first.md` is the primary deliverable; retry is MANDATORY.
@@ -956,7 +956,7 @@ Progress:
 
 **🛡️ Gate after all 3 complete:**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   phase-dd-3b "$OUTPUT_DIR"
 ```
 If FAIL on `dd-mid.md` or `dd-short.md` → retry dd-production-summary (Haiku, low risk).
@@ -1050,7 +1050,7 @@ Progress:
 
 **Phase gate (mandatory):**
 ```bash
-bash /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/dd/phase-gate.sh \
+bash /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/dd/phase-gate.sh \
   [OUTPUT_DIR] DD-3c
 ```
 If any of the 3 files MISSING → retry that agent ONCE with `tight-retry-template.md`
@@ -1092,7 +1092,7 @@ If `--investor-profile` was set AND Phase DD-3c ran, also include:
 **Step DD-4.1 — Verify Notion configuration:**
 
 ```bash
-set -a; source /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.env 2>/dev/null; set +a
+set -a; source /Users/cofounder/Documents/Projects/DD MarketStrat/.env 2>/dev/null; set +a
 
 if [ -z "$NOTION_TOKEN" ]; then
   echo "STATUS:MISSING_TOKEN"
@@ -1126,7 +1126,7 @@ Then SKIP DD-4.2, but continue to Step Final. Do NOT block the pipeline.
 > First-run engagement page title is generated from directory name: `nvidia-19.05.2026` → `"NVIDIA — MBB Engagement (19.05.2026)"`. Customize the title in Notion after first export if you want a different name (e.g. "Strategic DD" instead of "MBB Engagement") — the script will keep using the same `engagement_page_id` regardless of title.
 
 ```bash
-set -a; source /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.env; set +a
+set -a; source /Users/cofounder/Documents/Projects/DD MarketStrat/.env; set +a
 
 TARGET_DIR="[OUTPUT_DIR from Step 0]"
 
@@ -1144,7 +1144,7 @@ echo "Auto-routing: script will create new engagement page on first run, or reus
 echo "---"
 
 NOTION_FILES_WHITELIST="$WHITELIST" \
-  python3 /Users/cofounder/Documents/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "$TARGET_DIR"
+  python3 /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/notion-export/export_to_notion.py "$TARGET_DIR"
 ```
 
 Stream output to user. The script will:

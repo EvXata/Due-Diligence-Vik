@@ -369,7 +369,7 @@
 - dd-market-validator — adversarial quality высокий: TAM 113 трлн опровергнут; AUM методологический артефакт выявлен; маркетплейсы 17% рынка активных карт правильно повышены по весу
 - Кросс-слойная консистентность: все три decision layers (dd-short, dd-mid, dd-decision-first) используют одинаковые числа (840 млрд, 67% уверенность, 5.8/10, 192,4 млрд ₽ прибыль, NIM 10,8%); нет дрейфа между слоями
 
-**Scorecard saved:** /Users/cofounder/Documents/Projects/Due-Diligence-Vik/research/tinkoff-bank-22.05.2026/methodology-review.md (combined with agent scorecard)
+**Scorecard saved:** /Users/cofounder/Documents/Projects/DD MarketStrat/research/tinkoff-bank-22.05.2026/methodology-review.md (combined with agent scorecard)
 
 **Data quality metrics:**
 - Средний Data Quality Score по 6 сегментам: B (75% верифицировано) — MEDIUM-HIGH

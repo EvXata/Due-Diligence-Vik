@@ -36,12 +36,40 @@ Downstream агенты ОБЯЗАНЫ цитировать этот глосс�
 
 ---
 
+## Rescheduled Event Dates — MANDATORY DUAL-CITATION (added after T-Bank v9.1 acceptance test 25.05.2026)
+
+When you receive a hard-constraint correction in your prompt of the form `"<event>: stated [date A], VERIFIED ACTUAL = [date B] (rescheduled)"`, OR when your own research surfaces a corporate event whose date was rescheduled — you MUST cite **both dates** with explicit annotations. Do NOT collapse to a single date or to a vague "Q4 / autumn / fall" phrase.
+
+REQUIRED FORMAT:
+
+```
+[Event description]:
+  - Currently scheduled: [date B, DD.MM.YYYY] [source URL + date]
+  - Rescheduled from: [date A, DD.MM.YYYY] [source URL + date of original announcement]
+  - Status: ⚠️ Date verified via [N] independent sources / ⚠️ Date pending IR confirmation
+```
+
+EXAMPLE (T-Bank, verbatim from the v9.1 acceptance test correction):
+
+```
+Точка Bank shareholder vote (consolidation):
+  - Currently scheduled: 18 сентября 2026 (Interfax 24.04.2026; InvestFuture 24.04.2026)
+  - Rescheduled from: 5 июня 2026 (Vedomosti 03.02.2026 — initial announcement)
+  - Status: ⚠️ Verified via 2 sources; pending T-Bank IR confirmation of exact date
+```
+
+**Why this exists (T-Bank post-mortem 22.05.2026 + 25.05.2026):** A vague "Q4 2026" date passes through downstream agents losing the audit trail. A "5 июня 2026" date alone is wrong. Only the dual citation preserves both correctness AND the rescheduling signal, which the V5 contradiction-check / fact-checker need to triangulate. This rule supersedes any inclination to "consolidate" or "simplify" rescheduled dates.
+
+ZERO TOLERANCE: a hard-constraint correction that specifies "rescheduled from X to Y" → MUST appear in company-brief.md with both dates explicitly tagged. Generic phrasing ("Sep 2026", "осень 2026", "Q4") is non-compliant.
+
+---
+
 ## Блок 0 — Mega-Cap Cache Check (ВЫПОЛНЯЙ ПЕРВЫМ)
 
 Перед началом полного исследования проверь pre-cached профиль:
 
 1. Slugify имя компании: lowercase, заменить пробелы на `-`, убрать всё кроме `[a-z0-9-]`. Примеры: "NVIDIA" → `nvidia`, "Microsoft Corporation" → `microsoft-corporation`, "Alphabet" → `alphabet`.
-2. Попробуй прочитать `/Users/cofounder/Documents/Projects/Due-Diligence-Vik/mega-cap-cache/<slug>.md` через Read tool.
+2. Попробуй прочитать `/Users/cofounder/Documents/Projects/DD MarketStrat/mega-cap-cache/<slug>.md` через Read tool.
 3. **Если файл найден:**
    - Используй его как основу для company-brief.md (скопируй ключевые блоки: сегменты, конкуренты, регуляторика, management, bear arguments)
    - Проверь дату в `Refreshed:` — если старше 60 дней, добавь WARN в Agent Log

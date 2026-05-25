@@ -37,7 +37,7 @@ Parse arguments:
 Determine which path to run.
 
 ```bash
-set -a; source /Users/maximpuda/Projects/Due-Diligence-Vik/.env 2>/dev/null; set +a
+set -a; source /Users/cofounder/Documents/Projects/DD MarketStrat/.env 2>/dev/null; set +a
 
 ARG_FROM="[value of --from or empty]"
 
@@ -45,12 +45,12 @@ if [ -n "$ARG_FROM" ]; then
   # Resolve --from path
   if [ -d "$ARG_FROM" ]; then
     FROM_DIR="$ARG_FROM"
-  elif [ -d "/Users/maximpuda/Projects/Due-Diligence-Vik/research/$ARG_FROM" ]; then
-    FROM_DIR="/Users/maximpuda/Projects/Due-Diligence-Vik/research/$ARG_FROM"
+  elif [ -d "/Users/cofounder/Documents/Projects/DD MarketStrat/research/$ARG_FROM" ]; then
+    FROM_DIR="/Users/cofounder/Documents/Projects/DD MarketStrat/research/$ARG_FROM"
   else
     echo "STATUS:FROM_NOT_FOUND"
     echo "Tried: $ARG_FROM"
-    echo "Tried: /Users/maximpuda/Projects/Due-Diligence-Vik/research/$ARG_FROM"
+    echo "Tried: /Users/cofounder/Documents/Projects/DD MarketStrat/research/$ARG_FROM"
     exit 1
   fi
 
@@ -151,7 +151,7 @@ Create output directory:
 ```bash
 COMPANY_SLUG=$(echo "[COMPANY]" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
 DATE=$(date +%d.%m.%Y)
-OUTPUT_DIR="/Users/maximpuda/Projects/Due-Diligence-Vik/research/${COMPANY_SLUG}-${DATE}-fast"
+OUTPUT_DIR="/Users/cofounder/Documents/Projects/DD MarketStrat/research/${COMPANY_SLUG}-${DATE}-fast"
 mkdir -p "$OUTPUT_DIR"
 echo "$OUTPUT_DIR"
 ```
@@ -360,7 +360,7 @@ a single attachment.
 
 ```bash
 if [ -s "[OUTPUT_DIR]/dd-short.md" ]; then
-  python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/pdf-report/render_report.py \
+  python3 /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/pdf-report/render_report.py \
     "[OUTPUT_DIR]/dd-short.md" \
     --mode dd \
     --company "[company-display-name]"
@@ -388,10 +388,10 @@ If `NOTION_TOKEN` and `NOTION_MBB_ROOT_PAGE_ID` are set in `.env`, offer the use
 If user confirms, run:
 
 ```bash
-set -a; source /Users/maximpuda/Projects/Due-Diligence-Vik/.env; set +a
+set -a; source /Users/cofounder/Documents/Projects/DD MarketStrat/.env; set +a
 
 NOTION_FILES_WHITELIST="dd-short.md" \
-  python3 /Users/maximpuda/Projects/Due-Diligence-Vik/.claude/skills/notion-export/export_to_notion.py "[OUTPUT_DIR]"
+  python3 /Users/cofounder/Documents/Projects/DD MarketStrat/.claude/skills/notion-export/export_to_notion.py "[OUTPUT_DIR]"
 ```
 
 If Notion is not configured, skip silently — fast-mode does not block on Notion.
