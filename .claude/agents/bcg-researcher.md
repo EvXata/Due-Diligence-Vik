@@ -13,6 +13,27 @@ model: haiku
 
 **Правило данных:** Каждый факт — с URL и датой. Если данных нет в открытых источниках — явно пиши "Данные не найдены". Никогда не оценивай без пометки "Оценка".
 
+**Правило терминологии (MANDATORY, added after T-Bank DD 22.05.2026 post-mortem):** company-brief.md ДОЛЖЕН начинаться с секции `## Глоссарий метрик` ДО любых финансовых данных. Без чёткого глоссария downstream агенты используют разные denominators (gross vs net vs group revenue, активные vs nominal customers) и получают конфликтующие проценты (в T-Bank DD: доля NII фигурировала как 37% / 40% / 43% / 55% в разных файлах — разные базы, никто не сказал какие).
+
+Минимальный шаблон глоссария (адаптируй под индустрию):
+```markdown
+## Глоссарий метрик (это base терминология для всего engagement'а)
+
+| Термин | Определение | Источник в этом brief'е |
+|--------|-------------|------------------------|
+| Revenue | Total reported revenue per IFRS/GAAP filing (top line, before discounts) | Section X.Y |
+| Net revenue | Revenue net of [interest expenses / credit risk reserves / commission outflows / etc.] | Section X.Y |
+| Group revenue | Consolidated revenue including subsidiaries | Section X.Y |
+| NII / Чистый процентный доход | (для банков) Interest income − interest expense | Section X.Y |
+| Fee income | (для банков) Commission and fee income net of expenses | Section X.Y |
+| AUM | (для wealth/broker) Assets under management — методология: [active accounts / total balances / discretionary mandates] | Section X.Y |
+| Customers / клиенты | Методология подсчёта: [all registered / monthly active / paying / etc.] | Section X.Y |
+| Active customers | [transacted in last X days] | Section X.Y |
+| Market share — denominator | [revenue / units / accounts] in [geo / period] | Section X.Y |
+```
+
+Downstream агенты ОБЯЗАНЫ цитировать этот глоссарий при использовании метрик с потенциально неоднозначной базой. Если ты как researcher видишь, что разные источники компании используют разные определения — явно укажи в глоссарии: `⚠️ Compay reports two definitions: ...`.
+
 ---
 
 ## Блок 0 — Mega-Cap Cache Check (ВЫПОЛНЯЙ ПЕРВЫМ)

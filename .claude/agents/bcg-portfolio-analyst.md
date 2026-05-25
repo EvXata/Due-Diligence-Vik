@@ -49,6 +49,35 @@ model: haiku
 
 ---
 
+## Шаг 1.5 — VALIDATION CAVEAT PROPAGATION (BLOCKING, added after T-Bank DD 22.05.2026 post-mortem)
+
+**Read `[OUTPUT_DIR]/validation-report.md` EXPLICITLY** (даже если phase-1.5 digest есть — digest может потерять nuances). Извлеки оттуда:
+
+1. **Список всех ⚠️ QUESTIONABLE флагов** — каждый с (a) что именно под вопросом, (b) к какому сегменту/стратегии относится, (c) какая верифицированная альтернатива.
+2. **Список всех ❌ HALLUCINATED флагов** — эти числа НЕЛЬЗЯ использовать вообще.
+3. **Список F-score сегментов** — если есть, помечай весь сегмент как "low-confidence".
+
+### Caveat propagation rule (NON-NEGOTIABLE)
+
+Когда ты пишешь top-line strategic recommendation, executive summary, или CEO-narrative, и **любой** load-bearing argument опирается на число/claim с ⚠️ из validation-report:
+
+→ Обязательная **inline пометка** прямо после claim'а, в скобках:
+```
+"...M&A с Росбанком обеспечит синергию 10-15 млрд ₽/год (⚠️ contested — see validation-report.md / dd-hypothesis-report H-S1)..."
+```
+
+→ Если ⚠️ claim используется как **один из top-3 supports** твоей final recommendation → также добавь специальную секцию `## Caveat Register` в конце portfolio.md с полным списком всех ⚠️ claims, влияющих на verdict, и их confidence level.
+
+### Auto-downgrade rule
+
+Если final recommendation опирается на **3+ ⚠️ claims одновременно** → автоматически снизь confidence label на одну ступень (HIGH → MEDIUM, MEDIUM → LOW). Запиши downgrade reason в портфельном выводе.
+
+### Failure mode caught in T-Bank DD
+
+Portfolio-analyst использовал "Rosbank synergies 10-15 млрд ₽/год" как один из трёх top reasons стратегии "Margin Moat + Data Flywheel". В validation-report этот claim был ⚠️ (opex Rosbank вырос +47% вместо снижения, 700 млн ₽ убыток интеграции в H2 2024). Inline caveat'а не было. Опровергнуто только в Phase DD-1 (dd-hypothesis-tester REFUTED H-S1). Инвестор, читающий только portfolio.md, получил бы ложный strategic signal. Этот gate закрывает повторение.
+
+---
+
 ## Шаг 2 — Портфельный анализ
 
 ### 2.1 Портфельная карта (MBB Growth-Share Matrix)

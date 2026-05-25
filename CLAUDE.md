@@ -193,17 +193,20 @@ NOTION_FILES_WHITELIST="dd-short.md,dd-mid.md,dd-decision-first.md,dd-report.md"
 
 ### DD Pipeline (PRIMARY)
 
-`/dd` runs BCG foundation first, then DD-specific phases:
+`/dd` runs BCG foundation first, then DD-specific phases. The BCG foundation is the **DD-blitz projection of Pipeline v9.1.0** (canonical spec: [methodology/pipeline91.json](methodology/pipeline91.json), sha256 `204dfd45…`; cumulative on v9.0 `pipeline9.json` sha256 `68569d44…`) — same 68-stage architecture, time-compressed to ~45–70 min wall-clock by collapsing modules into the parallel blocks below. v9.1 quality patches (P1-P6) are inherited by the blitz via the runtime agents (`bcg-segment-analyst`, `bcg-market-mapper`, `bcg-fact-checker`, `bcg-portfolio-analyst`, `bcg-production`). Output file names are v9 legacy mirrors so DD agents read them unchanged. For full-fidelity v9 (all 68 stages, all 13 gates, all per-strategy isolation, ~2.5h wall-clock) run `/bcg-team <company>` first, then `/dd <company> --dir <output>`.
 
 ```
-BCG Foundation (Phases -1 → 3):
-  Phase -1   bcg-researcher          → company-brief.md
-  Phase 0    bcg-market-mapper        → market-map.md          } parallel
-             bcg-data-scientist       → advanced-analytics.md  }
-  Phase 1    bcg-segment-analyst ×N   → segment-[slug].md      } parallel
-             bcg-domain-expert        → domain-expert-input.md }
-  Phase 1.5  bcg-fact-checker         → validation-report.md
-  Phase 2    bcg-portfolio-analyst    → portfolio.md
+BCG Foundation (DD-blitz projection of v9 Modules 0-7):
+  Phase -1   bcg-researcher          → company-brief.md           (v9 Onboarding O0/O1/F2/BP1 + Enrichment 00/00c/01/01b)
+  Phase 0    bcg-market-mapper        → market-map.md          }  (v9 Segmentation 1S0-1S4 + G_PUREPLAYER)
+             bcg-data-scientist       → advanced-analytics.md  }  (v9 Delivery 6D financial exhibits)
+  Phase 1    bcg-segment-analyst ×N   → segment-[slug].md      }  (v9 Context 1B/1C/1D/1Y/1_BU_PORTFOLIO_VIEW/1_DESC_LOCK
+             bcg-domain-expert        → domain-expert-input.md }   + Advantage 2_routing/2A/2B/2C/2_ADV_LOCK
+                                                                   + Future 3A/3B/3C/3_FUT_LOCK
+                                                                   + Onboarding 0d, auto-invoke if B2B-vertical — v9 BUG #4)
+  Phase 1.5  bcg-fact-checker         → validation-report.md       (v9 V1+V2+V3 rolled into 1V_validation_report)
+  Phase 2    bcg-portfolio-analyst    → portfolio.md               (v9 Options 4_GENERATE — incl. ENTRY anti-pattern flag (BUG #3)
+                                                                    + Selection 5A/5B/5C/Beliefs/Champion/5_SELECT_final + G6/G7)
 
 DD Phases:
   Phase DD-1   dd-market-validator         → dd-market-validation.md  } parallel
@@ -312,27 +315,79 @@ research/batch-<date-time>/
 
 ---
 
-### BCG-Only Engagement Pipeline
+### BCG-Only Engagement Pipeline (Pipeline v9.1.0)
 
-Each `/bcg-team` run creates `research/<company>-<date>/` and executes agents sequentially, with parallelism inside phases:
+**Canonical spec:** [methodology/pipeline91.json](methodology/pipeline91.json) (sha256 `204dfd45…`,
+cumulative on v9.0 `pipeline9.json` sha256 `68569d44…`), PRDs at
+[methodology/PRD-pipeline-v9_1.md](methodology/PRD-pipeline-v9_1.md) and
+[methodology/PRD-pipeline-v9.md](methodology/PRD-pipeline-v9.md). Mirrored inside the skill at
+[.claude/skills/bcg-team/references/pipeline91.json](.claude/skills/bcg-team/references/pipeline91.json)
+for runtime reads. The `bcg-team` skill ([.claude/skills/bcg-team/SKILL.md](.claude/skills/bcg-team/SKILL.md))
+orchestrates v9.1's **68 stages across 9 modules with 13 quality gates**; stage prompts are read
+verbatim from `pipeline91.json` so V0–V5 validator audits remain meaningful.
+
+**v9.1 quality patches over v9.0 (cumulative, additive — no structural changes):**
+- **P1** Innovate Archetype Mandatory Gate per segment in `4_GENERATE` (≥1 I OR explicit `NOT_VIABLE`)
+- **P2** Question Mark 8-strategy floor + structural template (2D/2S/1P/1F/1I/1exit) in `4_GENERATE`
+- **P3** Self-derived TAM `⚠️ NO INDEPENDENT SOURCE` warning at TOP of TAM block (`1S0_segmenter`, `1B_industry_economics`, `6F_market_map_data`)
+- **P4** TAM-ceiling resolution protocol BLOCKING in `4_STRATEGY_FINANCIAL` (resolve via (a) revise share, (b) expand TAM with named source, or (c) explicit `target_not_independently_constrained` label)
+- **P5** Part-V GTM scope gate on `6E_implementation_roadmap` + V5 6E↔6B trigram-Jaccard overlap detector
+- **P6** Validation-override propagation checklist (`1V_validation_report.corrections_required[]` → `5_SELECT_final.corrections_applied[]` → `6A_decision_memo.corrections_applied[]`, V5 BLOCKS at G7 on parity failure)
+
+Each `/bcg-team` run creates `research/<company>-<date>/` and walks the v9 modules:
 
 ```
-Phase -1   bcg-researcher          → company-brief.md
-Phase 0    bcg-market-mapper        → market-map.md          } parallel
-           bcg-data-scientist       → advanced-analytics.md  }
-Phase 1    bcg-segment-analyst ×N   → segment-[slug].md      } parallel
-           bcg-domain-expert        → domain-expert-input.md }
-Phase 1.5  bcg-fact-checker         → validation-report.md
-Phase 2    bcg-portfolio-analyst    → portfolio.md
-Phase 2.5  bcg-gtm-analyst          → gtm-playbook.md
-Phase 3    bcg-production           → final-report.md
-Phase 3.5  bcg-contact-scout        → contact-universe.md    } optional, parallel
-           bcg-creative-strategist  → creative-brief.md      }
-           bcg-audience-scout       → contact-universe.md    } optional (sell-report mode only)
-Phase Post bcg-methodologist        → methodology-review.md  (background)
+Module 0   Onboarding (12 stages)        — O0/W0/O3.5/W1/O4/intake_routing/O1/O2/O3/F2/BP1/0d
+                                           Gates: G_LITE · G_OAUTH · G_BP_PROBE · G_COVERAGE · G1_burning_problem
+                                           Outputs incl. f2-client-context-brief.md (mirror → company-brief.md)
+                                           v9 BUG #4: 0d auto-invoke for B2B-vertical industries
+Module 1   Enrichment (4 stages)         — 00 / 00c / 01 / 01b           Gates: G0 · G1 · G2
+                                           v9 BUG #1: 00c emits legal_bu_count AND strategic_bu_count
+Module 2   Segmentation (5 stages)       — 1S0 / 1S1 / 1S2 / 1S3 / 1S4   Gate: G_PUREPLAYER
+                                           v9 BUG #2: 1S1 4th verdict VALID_AS_CROSS_SEGMENT_PLAY
+                                           1S4 lock → market-map.md
+Module 3   Context per-BU (8 stages)     — 1B / 1C / 1D / 1Y / 1_BU_PORTFOLIO_VIEW / 1_DESC_LOCK / V1 / 1V
+                                           Parallel with Module 2 · Gates: G3 · G3x
+                                           1_DESC_LOCK → segment-<slug>.md (per BU)
+                                           1V_validation_report → validation-report.md
+Module 4   Advantage (7 stages)          — 2_routing / 2A / 2B / 2C / 2_source_driver_matrix / 2_ADV_LOCK / V2
+                                           Gate: G4
+Module 5   Future (5 stages)             — 3A / 3B / 3C / 3_FUT_LOCK / V3   Gate: G5
+Module 6   Options (6 stages)            — 4_GENERATE + per-strategy ISOLATED orchestrators
+                                           (4_STRATEGY_FINANCIAL / VIABILITY / COMPETITOR / SANITY_SYNTHESIS) + V4
+                                           Gate: G6 · v9 BUG #3: ENTRY-cell anti-pattern auto-flag blocks elaboration
+Module 7   Selection (9 stages)          — 5A / 5B / 5B_real_options / 5C / 5C_game_theory / 5_BELIEFS_AUDIT
+                                           / 5_champion_test / 5_SELECT_final / V5
+                                           Gate: G7 · v9 BUG #5: V5 inline contradiction check on 6A + 6B
+                                           5_SELECT_final → portfolio.md
+Module 8   Delivery (12 stages, parallel post-G7)
+                                           6A_decision_memo / 6B_strategy_narrative / 6C_slide_structure
+                                           / 6D_financial_exhibits / 6E_implementation_roadmap / 6F_market_map_data
+                                           / 6G_risk_exhibit / 6H_appendix / 6I_strategy_card / 6J_hoshin_xmatrix
+                                           / 6K_okr_cascade / 6L_change_adkar_cadence
+                                           6A+6B+6C merged → final-report.md · 6E → gtm-playbook.md
+                                           6D → advanced-analytics.md
+Phase Post  bcg-methodologist (background) → methodology-review.md
 ```
 
-`company-brief.md` is the single source of truth — all agents must read it first before using any numbers.
+**Agent topology (L0–L4):**
+- L0 `senior-partner` (Partner orchestration in SKILL.md): G0 · G6 · G7
+- L1 `project-manager` (Partner orchestration in SKILL.md): G1–G5 · G3x
+- L2 orchestrators map to existing agents: `enrichment-orchestrator → bcg-researcher` ·
+  `segmentation-orchestrator → bcg-market-mapper` · `context/advantage/future/options-orchestrator → bcg-segment-analyst` ·
+  `selection-orchestrator → bcg-portfolio-analyst` · `delivery-orchestrator → bcg-production (+ bcg-gtm-analyst, bcg-data-scientist)` ·
+  `validator-lead → bcg-fact-checker` · `domain-expert → bcg-domain-expert`
+- L4 strategy-orchestrators run ISOLATED in `engagement/<id>/orchestrators/strat_<id>/` with own state/memory/checkpoint/validator
+
+**Model tiering (pipeline9.json):** Opus for strategy synthesis / advantage diagnosis / pattern routing / sequencing / final selection · Sonnet for research / parallel analyses / QA / future scenarios / validator audits · Haiku for brief parsing / BU detection / classification / slide structure / exhibit data.
+
+**DD compatibility:** v9 writes both v9-native artifacts and legacy-named mirrors (`company-brief.md`, `market-map.md`, `segment-*.md`, `validation-report.md`, `portfolio.md`, `gtm-playbook.md`, `final-report.md`, `advanced-analytics.md`, `domain-expert-input.md`) so `/dd` consumes v9 output without modification. See the v9→DD mapping table in [.claude/skills/dd/SKILL.md](.claude/skills/dd/SKILL.md#bcg-foundation-phases).
+
+`f2-client-context-brief.md` (mirrored as `company-brief.md`) is the single source of truth — all downstream stages must read it before quoting numbers.
+
+**Phase 3.5 (optional, post-G7):** bcg-contact-scout (target accounts) · bcg-creative-strategist (LinkedIn ads, outreach, pitch, one-pagers) · bcg-audience-scout (sell-report mode). Runs in parallel after Module 8 — independent of the v9 spec.
+
+**Reproducibility:** before any stage fires, SKILL.md verifies `methodology/pipeline91.json` SHA256 matches `methodology/pipeline91.json.sha256`. Mismatch aborts the engagement. The v9.1 build is itself zero-diff reproducible via `python3 scripts/build_pipeline_v9_1.py` (cumulative on `scripts/build_pipeline_v9.py` once that builder ships).
 
 ### Sales Intelligence Pipeline (standalone)
 
@@ -396,9 +451,18 @@ bcg-audience-scout  → contact-universe.md
 - `.claude/skills/dd/references/dd-output-standard.md` — 15-rule decision-first standard (MANDATORY read for all production agents AND fast-mode agents)
 - `.claude/skills/dd/references/templates/` — structural reference templates for the three decision layers
 
-**BCG Agents:**
-- `.claude/agents/` — all sub-agent definitions (one `.md` per agent)
-- `.claude/skills/bcg-team/SKILL.md` — BCG Partner orchestration (also triggers DD after Phase 3)
+**BCG Agents & Pipeline v9.1.0:**
+- `methodology/pipeline91.json` — **canonical strategy spec v9.1** (68 stages, 9 modules, 13 gates; sha256 `204dfd45…`)
+- `methodology/PRD-pipeline-v9_1.md` — v9.1 release PRD + 6 quality patches (P1-P6)
+- `methodology/pipeline91.json.sha256` — integrity hash (verified before every `/bcg-team` run)
+- `methodology/pipeline9.json` — v9.0 base spec (sha256 `68569d44…`; cumulative base)
+- `methodology/PRD-pipeline-v9.md` — v9.0 release PRD + 5 bug fixes from the Microsoft synthetic case
+- `methodology/pipeline-v9-proposed-updates.md` — post-integration audit (proposed v9.1/9.2/v10 patch tiers)
+- `scripts/build_pipeline_v9_1.py` — reproducible v9.1 patcher (cumulative on v9.0); zero-diff verified
+- `.claude/skills/bcg-team/references/pipeline91.json` + `PRD-pipeline-v9_1.md` — runtime mirrors
+- `.claude/skills/bcg-team/references/pipeline9.json` + `PRD-pipeline-v9.md` — v9.0 mirrors (cumulative base)
+- `.claude/agents/` — all sub-agent definitions (one `.md` per agent); each maps to an L2 orchestrator role in v9 (see Architecture → BCG-Only Engagement Pipeline)
+- `.claude/skills/bcg-team/SKILL.md` — Senior-Partner orchestration of v9.1's 68 stages; verifies pipeline91.json checksum on launch; reads stage prompts verbatim from pipeline91.json
 - `.claude/skills/bcg-methodology-review/SKILL.md` — cross-engagement quality improvement
 - `.claude/skills/notion-export/` — Notion export (SKILL.md + export_to_notion.py)
 - `.claude/skills/call-prep/SKILL.md` — pre-call intelligence skill

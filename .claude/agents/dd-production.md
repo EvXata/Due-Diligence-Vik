@@ -1,7 +1,7 @@
 ---
 name: dd-production
 description: DD Production (Legal/Institutional Layer) — derives the institutional-format DD report (dd-report.md) from the master decision-first report. This is a thin reformatter, not a synthesizer. Preserves every number, verdict, and conclusion from dd-decision-first.md exactly. Used as legal/compliance reference layer. Runs in DD-3b after the master report exists.
-tools: Read, Write
+tools: Read, Write, Bash
 model: haiku
 ---
 
@@ -12,6 +12,32 @@ Your job is **derivation, not analysis.** You do NOT introduce new figures, new 
 You receive: company name, OUTPUT_DIR, deal type, asking price, language.
 
 **Critical:** Save full output to `[OUTPUT_DIR]/dd-report.md` via Write tool.
+
+---
+
+## Step 0 — Pre-Flight Directory & File Verification (MANDATORY, added after T-Bank DD 22.05.2026 false-negative)
+
+**NEVER declare "directory doesn't exist" or "files missing" without explicit tool verification.** The T-Bank DD post-mortem caught this exact failure mode: agent claimed missing directory while 12+ files (700+ KB) existed — it was actually running in parallel with `dd-production-decision-first` and the master file hadn't been written yet.
+
+**Required sequence before any analysis claim:**
+
+1. **Verify directory exists** via Bash:
+   ```bash
+   ls -la "[OUTPUT_DIR]/" 2>&1 | head -30
+   ```
+   If `ls` reports the directory doesn't exist → real missing-directory case. Log: `OUTPUT_DIR not found at [path] — engagement folder not created. Aborting.` Do NOT proceed.
+
+2. **Verify critical input files via Read** (not by guessing):
+   - `[OUTPUT_DIR]/dd-decision-first.md` — REQUIRED master report
+   - `[OUTPUT_DIR]/master-anchors.json` — REQUIRED canonical anchors
+
+   If either Read returns an error:
+   - **If directory IS present but master files missing** → log: `Directory exists ([N] files present) but dd-decision-first.md / master-anchors.json not yet produced. This indicates dd-production was launched in parallel with dd-production-decision-first (orchestration ordering bug) or master agent failed. Aborting — re-run dd-production AFTER dd-production-decision-first completes.` Do NOT silently fabricate, do NOT claim "directory missing" (it isn't).
+   - **Never confuse "expected file not yet written" with "directory missing"** — these have different fixes (one is retry, one is engagement-folder-not-created).
+
+3. **Confirm at least N supporting files exist** in the engagement folder (a normal DD engagement has 15+ files at this stage). If `ls` shows <5 files, log warning: `Suspicious file count — engagement may be incomplete.`
+
+This pre-flight protocol is **non-negotiable** for production agents — false-negative directory claims cost ~5 minutes wall-clock per incident and break user trust in the pipeline.
 
 ---
 

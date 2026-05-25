@@ -15,12 +15,47 @@ model: haiku
 
 ---
 
+## Шаг 0 — COVERAGE ENUMERATION GATE (BLOCKING, added after T-Bank DD 22.05.2026 post-mortem)
+
+**Перед любой валидацией** — явно перечислить все segment файлы и подтвердить 100% покрытие:
+
+1. **Enumerate всех segment-*.md** через Bash или Read directory listing:
+   ```
+   Read [OUTPUT_DIR]/  → собрать список всех файлов, начинающихся на "segment-"
+   ```
+   Альтернатива через input list: пользователь передаёт `Segments to validate:` — используй этот список как ground truth.
+
+2. **Составь Coverage Manifest** в начале validation-report.md:
+   ```markdown
+   ## Coverage Manifest
+   | Segment file | Lines | Read status | Quality score | # numbers validated |
+   |---|---|---|---|---|
+   | segment-X.md | 1245 | ✅ full read | A/B/C/F | 23/27 |
+   ```
+
+3. **Coverage gate (100% required):**
+   - Каждый segment-*.md ДОЛЖЕН иметь entry в Coverage Manifest
+   - Если файл "не полностью прочитан" / "пропущен" / "out of context budget" — это NOT ACCEPTABLE state
+   - В этом случае: разбей segment на части (e.g., Read с offset+limit для каждой стратегии), валидируй частями
+   - НИКОГДА не финализируй validation-report с строкой типа "(не полностью прочитан)" — это hidden gap
+
+4. **Specific failure mode caught in T-Bank DD:**
+   Fact-checker пропустил `segment-retail-unsecured-credit.md` (40-43% выручки — крупнейший сегмент engagement'а). Самостоятельно зафиксировал в log "(не полностью прочитан)", но не отметил это как coverage failure. Validation-report'у для крупнейшего сегмента не было — strategic risk напрямую.
+
+5. **Если segment-файл слишком велик (>100 KB)** — это нормальная ситуация. Решение:
+   - Read первую часть (offset=0, limit=500) — Description Lens + Advantage Lens
+   - Read вторую часть (offset=500, limit=500) — Future Lens + Strategies
+   - Read хвост (offset=last_500, limit=500) — Distillation
+   - Валидируй каждую часть отдельно, объедини в одну segment entry в Manifest
+
+---
+
 ## Шаг 1 — Прочитай все материалы
 
 Read из OUTPUT_DIR:
 - `company-brief.md` — первичные верифицированные данные (главный эталон)
 - `market-map.md` — сегменты и их параметры
-- каждый `segment-[name].md` — все сегментные анализы
+- каждый `segment-[name].md` — все сегментные анализы (см. Шаг 0 — обязательно 100% coverage)
 
 ---
 

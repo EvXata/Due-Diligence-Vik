@@ -118,3 +118,83 @@
 
 **Rationale:** Samsung Change 3 (первая версия правила) снизила severity с 800→600→400 слов дублирования, но не устранила паттерн; strengthened self-check с конкретным триггером-фразой и инструкцией "удали или перенеси" (а не просто "не дублируй") закрывает оставшийся gap
 **Expected improvement:** Part V дублирование Part II снижается до нуля; Part V содержит исключительно selection logic, assumptions, risk correlation, execution sequence
+
+
+---
+
+## 2026-05-22 — T-Bank DD post-mortem — 7 Applied Changes
+
+**Source:** T-Bank (Т-Технологии, MOEX: T) DD engagement methodology review + post-mortem
+**Engagement type:** Full Strategic DD (BCG foundation + DD phases + investor profile memos)
+**Wall-clock:** 1h 31min total
+**Bugs caught:** 7 (1 critical, 5 medium, 1 noted)
+
+### Change 1: dd-production.md — Pre-flight directory verification
+**Trigger:** BUG #1 — false-negative on first attempt (claimed directory missing while 12+ files existed; was actually a parallel-with-master ordering issue)
+**Change:** Added Step 0 (MANDATORY) requiring `Bash ls` directory check + `Read` master-anchors.json/dd-decision-first.md verification BEFORE claiming any missing-file state. Differentiates "directory missing" (engagement folder not created) from "expected file not yet produced" (parallel ordering issue).
+**Tools added:** Bash (was: Read, Write only)
+**Expected gain:** ~5 min wall-clock per DD engagement (eliminates retry-after-false-negative)
+
+### Change 2: bcg-data-scientist.md — Financial-company TAM gate
+**Trigger:** BUG #3 — TAM 113 трлн ₽ for T-Bank was balance aggregate, not revenue addressable (~14× overstatement)
+**Change:** Added BLOCKING gate before market sizing — if industry ∈ {banking, insurance, asset-mgmt, brokerage, specialty finance}, TAM MUST be revenue-based, not asset/AUM/balance. Includes conversion formula (balance × NIM/fee rate), sanity checks (SOM > SAM = error), and forbidden-output patterns.
+**Expected gain:** Prevents ~30 min false-optimism in portfolio.md for financial-company engagements; closes first-known-case in corpus
+
+### Change 3: bcg-portfolio-analyst.md — Validation caveat propagation
+**Trigger:** BUG #4 — Rosbank synergies (⚠️ in validation-report) used as top-3 strategic support without inline caveat
+**Change:** Added Step 1.5 BLOCKING — explicit read of validation-report.md, extraction of all ⚠️ flags, mandatory inline caveat after any claim used in top-line recommendation. Auto-downgrade confidence rule if 3+ ⚠️ claims in final verdict. Optional Caveat Register section.
+**Expected gain:** Eliminates strategic signal pollution in portfolio.md from contested data; downstream DD agents see properly tagged claims
+
+### Change 4: bcg-fact-checker.md — Coverage enumeration gate
+**Trigger:** BUG #5 — segment-retail-unsecured (40-43% revenue, largest segment) silently skipped; agent logged "(не полностью прочитан)" but no coverage failure flagged
+**Change:** Added Step 0 BLOCKING — Coverage Manifest table at start of validation-report listing every segment-*.md with Read status. 100% coverage required. Large-file handling: split via offset+limit if >100 KB.
+**Expected gain:** Eliminates silent coverage gaps; downstream agents get full validation signal
+
+### Change 5: bcg-researcher.md — Metrics glossary requirement
+**Trigger:** BUG #6 — multiple metric methodology conflicts (NII % as 37/40/43/55, AUM as 1.4 vs 5.3 trln, customers as 54M nominal vs 34M MAU vs 4.2M active)
+**Change:** company-brief.md MUST begin with `## Глоссарий метрик` table defining all denominators (revenue/net revenue/group revenue, NII, fee income, AUM methodology, customer activity definition) BEFORE any financial data. Downstream agents must cite glossary when using ambiguous metrics.
+**Expected gain:** Eliminates cross-file denominator drift; portfolio-analyst can no longer accidentally compare apples to oranges
+
+### Change 6: bcg-methodologist.md — Improvement-log append fallback
+**Trigger:** BUG #7 — improvement-log.md >25K tokens → could not Read+Write entire file → T-Bank entry saved to separate temp file
+**Change:** Trinary fallback strategy — Bash wc -c check first, branch on size: (a) missing → Write, (b) <20KB → Read+Write, (c) ≥20KB → Bash heredoc append (`cat <<'EOF' >> file`). Atomic, no context-window issues.
+**Tools added:** Bash (was: WebSearch, Read, Write)
+**Expected gain:** improvement-log append never fails again as corpus grows; tested live on T-Bank append (67.5 KB → 76.6 KB)
+
+### Change 7: bcg-market-mapper.md — Corporate event date freshness
+**Trigger:** BUG #2 — Точка M&A shareholder vote date cited as "5 июня 2026" (actual: 18 сентября 2026, rescheduled)
+**Change:** For ANY future corporate event date (vote, M&A close, IPO, regulatory filing) — MANDATORY WebSearch freshness check (≤30 days). If verified reschedule found, cite both old/new with sources. If not verified in 30 days, use quarter/month only (no specific calendar date).
+**Expected gain:** Prevents stale-date contamination of downstream files (portfolio, DD, risk-matrix all received the wrong Точка date in T-Bank DD before fact-checker caught it)
+
+### Changes NOT applied (out of scope this iteration)
+
+- **OPT #1: DD-3c → Notion sequencing in `/dd` skill** — explicitly excluded by user ("кроме ноушен")
+- **OPT #8: Notion export better error messages** — explicitly excluded
+- **OPT #9: Phase 1 Tier-2 batching** — additive optimization, not bug-fix; defer to next iteration
+- **OPT #10: engagement.log auto-updater agent** — new agent, broader scope; defer
+
+### Test status
+- All 7 prompt edits applied via Edit tool
+- Bash tools added to dd-production + bcg-methodologist
+- T-Bank entry appended to improvement-log.md via the new heredoc fallback (verified: 67.5 KB → 76.6 KB)
+- temp file improvement-log-tbank-append.md cleaned up
+- 8/8 post-mortem tasks closed
+
+---
+
+## 2026-05-25 — Applied: TAM-Ceiling Resolution Protocol (v9.1 P4)
+
+**Agent:** bcg-segment-analyst.md
+**Source:** Pipeline v9.1.0 release (cumulative on v9.0.0); 3-engagement confirmed pattern (Micron AEBU, Amkor Automotive, GFS A&D)
+**Change:** Шаг B (Revenue Impact Ceiling Check) полностью переписан с soft ≤30/50% sanity check на BLOCKING resolution protocol:
+
+- Триггер: implied_share > 50% И не-доминирующий участник ИЛИ implied_share > 80% для любого
+- Три способа resolve: (a) revise to credible share с named precedent · (b) expand TAM с named Tier-1/2 source · (c) labeled target_not_independently_constrained с явным precondition assumption
+- Запрещено flag-and-pass — resolution MUST произойти внутри стратегии до сохранения файла
+- Обязательная output table per strategy с колонкой resolution_status (= ceiling_check required field в pipeline91.json)
+- Legacy ≤30% sanity check сохранён как Шаг B.1 (one-line обоснование без блокировки)
+
+**Rationale:** 3-engagement pattern (Micron/Amkor/GFS) с TAM-ceiling breach passed unresolved через fact-checker и portfolio в final report только с footnote caveat; existing sanity check (>30% → recheck, >50% → "impossible") был too soft — давал агенту разрешение оставить ⚠️ flag вместо реального resolve. v9.1 P4 заменяет soft check на BLOCKING gate с тремя named resolution paths.
+
+**Companion:** spec patched в methodology/pipeline91.json под `4_STRATEGY_FINANCIAL.content` + `required_fields_per_stage.4_STRATEGY_FINANCIAL.ceiling_check`
+**Expected improvement:** Zero TAM-ceiling breaches passed to portfolio.md / final-report.md без resolved status начиная со следующего engagement'а

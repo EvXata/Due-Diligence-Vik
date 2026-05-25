@@ -35,6 +35,15 @@ model: sonnet
 
 5. **Актуальная выручка конкурентов** — для каждого конкурента, упоминаемого в конкурентных таблицах: поищи `[competitor] Q4 2025 earnings` или `[competitor] FY2025 revenue results`, чтобы использовать фактические последние данные, а не прогнозы аналитиков. Если квартальные результаты опубликованы (обычно через 4–8 недель после отчётного периода) — используй фактические данные.
 
+6. **Future corporate event dates (БЛОКИРУЮЩЕЕ, added after T-Bank DD 22.05.2026 post-mortem)** — для ЛЮБОЙ даты будущего corporate event'а (shareholder vote, M&A closing, IPO, spin-off, regulatory filing deadline, dividend record date, обещанный продуктовый запуск), которую ты упоминаешь в market-map.md:
+
+   - **MANDATORY freshness check:** обязательно WebSearch ровно за последние 30 дней. Запрос: `"[event] [company] date" after:[today-30d]`. Альтернативный синтаксис: добавь в запрос текущий месяц-год (например, `"shareholder vote Tochka 2026"`).
+   - **Если найдена reschedule / postponement** — используй новую дату, помечай явно: `[VERIFIED [today], previously scheduled [old date], rescheduled to [new date] per [source URL]]`.
+   - **Если дата не подтверждена за последние 30 дней** — НЕ цитируй конкретную дату. Используй формулировку: `ожидается в [квартал/месяц] [year] (точная дата не верифицирована; см. issuer disclosure)`.
+   - **Никогда не указывай календарную дату без freshness check** — даты будущих corporate events часто переносятся; устаревшие даты вводят downstream агентов в заблуждение.
+
+   **Failure mode caught in T-Bank DD:** market-mapper указал дату голосования по консолидации Точки как "5 июня 2026" (была актуальна 4 месяца назад). Фактически перенесена на 18 сентября 2026. Поймана fact-checker'ом (Phase 1.5), но успела пройти в portfolio.md как gating event. Эта правка ловит на источнике, до распространения downstream.
+
 ---
 
 ## Шаг 2 — Определение сегментов

@@ -176,16 +176,52 @@ H-X1: [Specific claim about absence of hidden deal-breakers]
 
 ## BCG FOUNDATION PHASES
 
+> **Canonical strategy spec (Pipeline v9.1.0):** The authoritative definition of the
+> BCG strategy foundation is `methodology/pipeline91.json` (sha256 204dfd45…), with the
+> human-readable PRD at `methodology/PRD-pipeline-v9_1.md` (cumulative on
+> `methodology/PRD-pipeline-v9.md`). v9.1 adds 6 quality patches inherited by the DD
+> blitz: P1 Innovate mandatory per segment · P2 Question Mark 8-floor · P3 Self-derived
+> TAM warning · P4 TAM-ceiling resolution protocol · P5 Part-V scope gate + V5 6E↔6B
+> overlap detector · P6 Validation-override propagation checklist. The DD-blitz phases below are
+> a **time-compressed projection** of v9 onto a ~45–70 min wall-clock — they map to v9
+> stages and produce the same legacy file names (`company-brief.md`, `market-map.md`,
+> `segment-*.md`, `validation-report.md`, `portfolio.md`, `advanced-analytics.md`,
+> `domain-expert-input.md`) that DD-1 onward consumes.
+>
+> v9 → DD-blitz mapping:
+> | DD-blitz phase | v9 stages collapsed into it |
+> |---|---|
+> | BCG Phase -1 (researcher) | Onboarding `O0/O1/F2/BP1` + Enrichment `00/00c/01/01b` (gates G0/G1/G2 enforced inline) |
+> | BCG Phase 0 (market-mapper + data-scientist) | Segmentation `1S0/1S1/1S2/1S3/1S4` (G_PUREPLAYER, incl. v9 BUG #2 cross-segment verdict) + delivery `6D` financial exhibits |
+> | BCG Phase 1 (segment-analyst × N + domain-expert) | Context `1B/1C/1D/1Y/1_BU_PORTFOLIO_VIEW/1_DESC_LOCK` (G3/G3x) + Advantage `2_routing/2A/2B/2C/2_ADV_LOCK` (G4) + Future `3A/3B/3C/3_FUT_LOCK` (G5) + onboarding `0d` (v9 BUG #4 auto-invoke if B2B-vertical) |
+> | BCG Phase 1.5 (fact-checker) | Validator audits `V1/V2/V3` rolled into `1V_validation_report` |
+> | BCG Phase 2 (portfolio-analyst) | Options `4_GENERATE` (v9 BUG #3 anti-pattern flag on ENTRY) + Selection `5A/5B/5C/Beliefs/Champion/5_SELECT_final` (G6/G7) |
+>
+> When running `/dd --dir <existing>`, the DD pipeline accepts both v9-native outputs
+> (e.g. `f2-client-context-brief.md`, `1_DESC_LOCK.md`) AND the legacy mirrors. If
+> only v9-native files are present, DD agents read them directly; if mirrors exist,
+> DD agents read mirrors (they are content-identical).
+>
+> v9 bug fixes #1 (BU divergence flag) and #5 (V5 inline contradiction) are enforced
+> upstream of DD — DD inherits the cleaner foundation but does not re-implement them.
+
 > **If `--dir` was provided and `portfolio.md` exists:** Skip all BCG phases. Output:
 > ```
 > ✅ BCG Foundation: Using existing analysis from [OUTPUT_DIR]
+> 🧬 Pipeline spec: v9.1.0 (sha256 204dfd45…) — legacy mirrors detected
 > 🚀 Jumping directly to DD phases...
 > ```
 > Then proceed to Phase DD-1.
 
 > **If running BCG phases fresh:** Execute all phases below before DD phases.
+> For full-fidelity v9 (all 68 stages, all 13 gates, ~2.5h wall-clock) run
+> `/bcg-team <company>` first, then `/dd <company> --dir <output>`. The blitz mode
+> below trades coverage of v9's delivery module (6A-6L deck stages) and per-strategy
+> isolation for speed — it produces a DD-ready foundation, not a board-ready deck.
 
 Read these first:
+- `methodology/PRD-pipeline-v9_1.md` — v9.1 release notes + 6 quality patches DD inherits (P1-P6)
+- `methodology/PRD-pipeline-v9.md` — v9.0 release notes + 5 bug fixes (cumulative base)
 - `.claude/skills/bcg-team/references/bcg-framework-5-lenses.md` — analytical framework
 - `.claude/skills/dd/references/tight-retry-template.md` — watchdog-aware agent caps
 

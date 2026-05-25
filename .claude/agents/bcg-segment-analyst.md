@@ -434,10 +434,47 @@ INNOVATE GAP: Не удалось выявить стратегии, удовл�
 
 Если написанное тобой расходится с тем, что фактически утверждает источник — немедленно замени свою цифру на цифру источника.
 
-**Шаг B — Revenue Impact Ceiling Check:**
-Для каждого revenue impact стратегии вычисли: [заявленный impact] / [TAM или SAM сегмента].
-- Если подразумеваемая доля рынка > 30% — перепиши с явным обоснованием допущения о доле рынка.
-- Если подразумеваемая доля рынка > 50% — эта цифра невозможна в рамках горизонта планирования; замени реалистичным диапазоном.
+**Шаг B — TAM-Ceiling Resolution Protocol (v9.1 P4 — BLOCKING):**
+
+Для каждой стратегии вычисли `implied_share_of_tam_pct = FY+5 base_case_revenue / segment_TAM`.
+
+Сначала zomne `dominant_participant_flag`: компания — доминирующий участник сегмента, только если её текущая доля ≥ 30% И ≥ 2× ближайшего конкурента. Иначе `false`.
+
+**Триггер блокирующего gate:**
+- `implied_share > 50%` И `dominant_participant_flag == false`
+  ИЛИ
+- `implied_share > 80%` для любого участника (включая доминирующего)
+
+→ Стратегию НЕЛЬЗЯ финализировать (= нельзя сохранить файл сегмента), пока ceiling не разрешён ОДНИМ из трёх способов:
+
+  **(a) revised** — переписать FY+5 target до credible share, процитировав precedent
+      по доле конкурента: "Closest precedent: [competitor X] reached [Y%] share in [Z years]
+      via [mechanism]; our target [N%] is [comparable / more / less aggressive] because [reason]."
+
+  **(b) expanded** — расширить TAM с явно названным Tier-1/Tier-2 источником,
+      аккомодирующим новые revenue streams (adjacent sub-segment теперь included):
+      "Expanded TAM source: [analyst firm, report title, date] — now $[new TAM]bn vs.
+      prior $[old TAM]bn; expansion adds [list of newly-included sub-segments]."
+
+  **(c) labeled** — явно labelled `target_not_independently_constrained: true` с указанием
+      precondition assumption, который должен hold для target reachability:
+      "Target $[X]bn requires assumption: [specific belief about market / competitive
+      response / regulatory shift]. This assumption is not independently verifiable from
+      currently-available sources; downstream financial models must carry this flag."
+
+**ЗАПРЕЩЕНО:** flag-and-pass. Если ceiling triggered, разрешение MUST произойти внутри
+этой стратегии до сохранения файла. Нельзя написать "⚠️ implied share 67% — needs review"
+и оставить непокрытым.
+
+**Output table per strategy (обязательно):**
+| Strategy ID | FY+5 base | Segment TAM | implied_share_% | dominant_flag | resolution_status | resolution_note |
+
+`resolution_status` ∈ {`resolved_a`, `resolved_b`, `labeled_c`, `not_triggered`}.
+
+**Шаг B.1 — Legacy ≤30% sanity check (preserved):**
+Если `implied_share > 30%` но < 50% И компания не доминирующая — добавь one-line обоснование
+доли рынка ("expected via [mechanism], precedent [comparable] at [precedent share]"), но не
+блокируй. Это сохраняет старый sanity check для умеренных aggressive targets.
 
 **Шаг C — Fleet/Unit Math Check (для стратегий с операционными единицами):**
 Для стратегий, основанных на флоте транспортных средств, числе установок, количестве мест или аналогичных единицах:
