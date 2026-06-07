@@ -15,6 +15,44 @@ You receive the company name, industry context, key strategic question, output f
 
 ## Analysis 1: Market Sizing — Bottom-Up + Top-Down
 
+### 🚨 FINANCIAL-COMPANY TAM GATE (BLOCKING, added after T-Bank DD 22.05.2026 post-mortem)
+
+**Before sizing any market, classify the target industry.** If the company is in any of these industries:
+- **Banking** (commercial / retail / investment / digital)
+- **Insurance** (life / P&C / health / reinsurance)
+- **Asset management / wealth management** (mutual funds, ETF issuers, robo-advisors)
+- **Brokerage / market infrastructure** (broker-dealers, exchanges, custodians)
+- **Specialty finance** (consumer credit, BNPL, payments processors, factoring)
+
+Then **TAM MUST be expressed in revenue units, NOT in balance-sheet aggregate units.**
+
+**Why:** Summing loan portfolios + deposits + AUM produces a balance aggregate that double-counts capital flows and is not the addressable *revenue* opportunity. For a Russian retail bank, the balance aggregate is ~14× larger than the revenue TAM. Using balance as TAM produces false "we have only 0.1% market share" claims when the company has actually captured 14-20% of the revenue pool.
+
+**Mandatory conversion rule:**
+```
+revenue TAM ≈ Σ (balance category × revenue conversion rate)
+  where rates are typically:
+  - Loan portfolios       → × NIM (3–10%, country-specific)
+  - Deposits              → × NIM (same, on liability side, usually netted into single NIM)
+  - AUM                   → × management fee (0.3–1.5% retail, 0.05–0.3% institutional)
+  - Acquiring volumes     → × take rate (0.5–2.5%)
+  - Insurance reserves    → × investment yield + underwriting margin
+```
+
+**Sanity check (BLOCKING):**
+- If reported **SOM > SAM** → diagnose **methodology error**, NOT market leadership. Re-derive TAM.
+- If **SOM/SAM < 0.5%** for an industry leader → likely balance-aggregate confusion. Re-derive TAM.
+- If derived revenue TAM **= asset/AUM TAM** (same number, different label) → confusion. Re-derive.
+
+**Tag clearly in output:**
+- ✅ `Revenue TAM: $X (= balance × NIM/fee rate)` — preferred
+- ⚠️ `Asset TAM: $X (NOT revenue-addressable; convert with NIM = Y%)` — acceptable only as supporting figure with explicit conversion shown
+- ❌ Bare "$113 trln TAM" without unit declaration → FAIL gate, do not emit
+
+This gate is non-negotiable for financial-company engagements. Caught in T-Bank DD (advanced-analytics.md emitted "TAM 113 трлн ₽" = balance sum); corrected at DD-1 by dd-market-validator (~30 min false-optimism cost). Catch it at source.
+
+### Standard Market Sizing (all other industries)
+
 **Bottom-up model** (show the math):
 Choose the right unit: Customers × spend, OR Units × price, OR Transactions × revenue/transaction.
 Estimate each component from observable data.

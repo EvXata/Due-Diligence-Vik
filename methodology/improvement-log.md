@@ -334,3 +334,51 @@
 - Researcher conservative ESTIMATED tag on announced corporate events: 3 identified occurrences in log (Crucial exit here, Apple QTL correction in Qualcomm, Runway ML valuation in ByteDance all required fact-checker remediation for events that had press releases) — EMERGING PATTERN across company types; Change 3 directly addresses
 - BCG test override disclosure: 2/3 semiconductor engagements (CDBU here, Qualcomm QCT/QTL in prior) — segmentation judgment calls not explicitly disclosed as overrides; MEDIUM priority
 - final-report.md absent: 8/22 engagements (36% historical rate) — STABLE; no production failure in 5 consecutive engagements; MVR protocol changes appear effective
+
+
+---
+
+## 2026-05-22 — T-Bank (Т-Технологии, MOEX: T) engagement
+
+**Overall Quality:** B+
+**Scorecard avg:** 3.1 / 4
+**A (Проницательность):** 3.3 | **B (Коммуникация):** 3.1 | **C (Эффективность):** 2.9
+**Weakest agent:** dd-production (legal layer) — 2.08 / 4 — false-negative при первом запуске (заявил что директория не существует, несмотря на наличие 12+ файлов); потребовал ручной перезапуск; после перезапуска значительное дублирование содержания с dd-decision-first
+**Second weakest agent:** bcg-segment-analyst × 6 (avg) — 3.0 / 4 — АУМ Т-Инвестиции 5,3 трлн vs 1,4 трлн (методологическое расхождение не разрешено внутри документа до fact-checker); абоненты Т-Мобайл 6 млн (2024) vs 4,6 млн (2025) логически противоречивы без объяснения внутри сегментного файла
+
+**Top 3 issues:**
+1. TAM как балансовый агрегат (113 трлн ₽) — bcg-data-scientist суммировал кредитные портфели + депозиты + AUM для расчёта TAM; это классическая vendor TAM ошибка для финансовых компаний; корректный revenue TAM ≈ 7-10 трлн ₽; dd-market-validator правильно опроверг, но агент должен делать этот тест самостоятельно; ПЕРВЫЙ ЯВНЫЙ СЛУЧАЙ в engagement'ах с финансовыми компаниями в этом корпусе [bcg-data-scientist]
+2. Опровергнутые данные (⚠️) переданы как надёжный аргумент — bcg-portfolio-analyst использовал синергии Росбанка (10-15 млрд ₽/год) как одну из трёх "топ причин победы стратегии" без явного caveat, несмотря на то что validation-report имел ⚠️ на opex +47% (вместо снижения); H-S1 была официально опровергнута только в dd-hypothesis-tester; инвестор, читающий только portfolio.md, получил бы ложный сигнал [bcg-portfolio-analyst]
+3. dd-production (legal layer) false-negative при первом запуске — агент заявил что output directory не существует, что потребовало ручного перезапуска; системная проблема: агент принимает путь как строку без верификации через Read tool; ПЕРВЫЙ ЯВНЫЙ СЛУЧАЙ в этом корпусе для legal layer агента [dd-production]
+
+**Additional issues noted:**
+4. bcg-market-mapper — hallucination даты голосования Точки (5 июня → 18 сентября 2026); агент самостоятельно пометил [НЕ ВЕРИФИЦИРОВАНО], что является позитивным сигналом самоосознанности, но hallucination остался и был пойман fact-checker через WebSearch (investfuture.ru, smart-lab)
+5. bcg-fact-checker — segment-retail-unsecured (крупнейший сегмент, 40-43% выручки) явно пропущен при чтении; задокументировано в agent log как "(не полностью прочитан)"; снижает доверие к Quality Score для этого критического сегмента
+
+**Proposed prompt changes:** 3 changes (see /research/tinkoff-bank-22.05.2026/methodology-review.md)
+- Change 1 (dd-production directory verification gate): dd-production.md — ОБЯЗАТЕЛЬНЫЙ первый шаг — верификация директории через Read tool на одном ожидаемом файле до начала работы; если файл недоступен — сообщить об ошибке с точным путём; не заявлять что директория не существует без проверки через инструмент — HIGH confidence
+- Change 2 (TAM revenue-basis gate для финансовых компаний): bcg-data-scientist.md — для банков, страховщиков, управляющих: если в расчёте TAM суммируются портфели/депозиты/AUM — обязательный пересчёт в revenue-based TAM (× NIM или комиссионная ставка); если SOM превышает SAM — диагностировать ошибку в определении — HIGH confidence
+- Change 3 (portfolio-analyst caveat loop при ⚠️ данных): bcg-portfolio-analyst.md — для каждого ⚠️ флага из validation-report, используемого как primary support стратегического аргумента — добавить явный caveat; не использовать questionable данные как топ-аргумент без оговорки — HIGH confidence
+
+**Applied immediately:** Все 3 изменения HIGH confidence. Change 1 (directory check) — самый срочный: прямые операционные потери при каждом false-negative. Change 2 (TAM финансовые компании) — применить перед следующим банковским или страховым engagement'ом.
+
+**What worked well:**
+- bcg-domain-expert (3.85 / 4) — лучший агент engagement'а; CBDC 1 сентября 2026 как структурная угроза с конкретной датой; NIM-цикл как особо болезненный для T-Bank vs сектор; Совкомбанк + Хоум Банк консолидация как недооценённая конкурентная угроза; все 10 гипотез с явными вердиктами
+- dd-production-decision-first (4.0 / 4) — вердикт + провалы + таблица самоидентификации в первых 100 строках; narrative провалы с конкретными датами (Wildberries банковская лицензия октябрь 2026; CBDC 1 сентября 2026); VRIO по 7 преимуществам с итоговым баллом; Pyramid Principle соблюдён
+- bcg-fact-checker — дата Точки (5 июня → 18 сентября 2026) поймана через WebSearch; конкретная замена предложена с точным текстом
+- dd-market-validator — adversarial quality высокий: TAM 113 трлн опровергнут; AUM методологический артефакт выявлен; маркетплейсы 17% рынка активных карт правильно повышены по весу
+- Кросс-слойная консистентность: все три decision layers (dd-short, dd-mid, dd-decision-first) используют одинаковые числа (840 млрд, 67% уверенность, 5.8/10, 192,4 млрд ₽ прибыль, NIM 10,8%); нет дрейфа между слоями
+
+**Scorecard saved:** /Users/cofounder/Documents/Projects/Due-Diligence-Vik/research/tinkoff-bank-22.05.2026/methodology-review.md (combined with agent scorecard)
+
+**Data quality metrics:**
+- Средний Data Quality Score по 6 сегментам: B (75% верифицировано) — MEDIUM-HIGH
+- Лучший по качеству: company-brief.md (A, 83%) — финансовые цифры FY2025 верифицированы через официальные МСФО-раскрытия
+- Худший: segment-mobile (B, 71%) — абоненты логически противоречивы без объяснения
+- Total claims checked: 177 | ✅ verified: 142 (80%) | ⚠️ questionable: 28 (16%) | ❌ hallucinated: 7 (4%) | Error rate: 4%
+- Overall: B+ (82% верифицировано, 3 критических ошибки)
+
+**Специфика финансовых компаний (новый паттерн):**
+Российские публичные банки без SEC EDGAR — МСФО сегментный breakdown недоступен в пресс-релизах; все выручки по сегментам оценочные ⚠️; NIM/C2I/ROE часто не раскрываются публично. Это структурное ограничение, не агентская ошибка. Рекомендация: добавить в prompt bcg-researcher для финансовых компаний явный path к получению детального МСФО через IR call или платный доступ.
+
+---

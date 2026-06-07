@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xata&Co — Deal Evidence OS</title>
+<style>
+/* ═══ RESET & TOKENS ═══ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0b0d;--bg-1:#111318;--bg-2:#161920;--bg-3:#1c2028;
+  --border:#222630;--border-h:#2e3340;
+  --text:#e8eaf0;--text-2:#8a90a0;--text-3:#5a6070;
+  --accent:#c9a84c;--accent-2:#9a8a6a;
+  --green:#3a9a6a;--red:#c94c4c;--blue:#4c7ac9;--purple:#7a6ac9;--orange:#c98a4c;
+  --font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono","Fira Code","SF Mono",monospace;
+  --radius:6px;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;overflow:hidden;height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
+select{font-family:var(--mono);font-size:12px;background:var(--bg-2);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:var(--radius);width:100%}
+a{color:var(--accent);text-decoration:none}
+
+/* ═══ LAYOUT ═══ */
+.shell{display:grid;grid-template-columns:240px 1fr;grid-template-rows:48px 1fr;height:100vh}
+.topbar{grid-column:1/-1;background:var(--bg-1);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;gap:16px}
+.sidebar{grid-row:2;background:var(--bg-1);border-right:1px solid var(--border);overflow-y:auto;padding:16px}
+.main{grid-row:2;overflow-y:auto;background:var(--bg)}
+
+/* ═══ TOPBAR ═══ */
+.brand{display:flex;align-items:center;gap:10px}
+.brand-mark{width:28px;height:28px;background:var(--accent);border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--bg)}
+.brand-name{font-weight:700;font-size:15px;letter-spacing:-0.3px}
+.brand-tag{font-family:var(--mono);font-size:10px;color:var(--text-3);letter-spacing:1.5px;text-transform:uppercase}
+.top-metrics{display:flex;gap:24px;align-items:center}
+.top-metric{text-align:center}
+.top-metric .val{font-family:var(--mono);font-size:16px;font-weight:600}
+.top-metric .lbl{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px}
+.top-actions{display:flex;gap:8px}
+.btn-accent{background:var(--accent);color:var(--bg);padding:7px 16px;border-radius:var(--radius);font-weight:600;font-size:12px;letter-spacing:0.3px}
+.btn-accent:hover{opacity:0.9}
+.btn-ghost{border:1px solid var(--border);color:var(--text-2);padding:7px 16px;border-radius:var(--radius);font-size:12px}
+.btn-ghost:hover{border-color:var(--border-h)}
+
+/* ═══ SIDEBAR ═══ */
+.sb-section{margin-bottom:20px}
+.sb-label{font-family:var(--mono);font-size:10px;color:var(--text-3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px}
+.role-list{display:flex;flex-direction:column;gap:2px}
+.role-btn{text-align:left;padding:8px 10px;border-radius:var(--radius);transition:background 0.15s;display:flex;flex-direction:column;gap:2px}
+.role-btn:hover{background:var(--bg-2)}
+.role-btn.active{background:var(--bg-3);border-left:2px solid var(--accent);padding-left:8px}
+.role-btn .rname{font-weight:600;font-size:12px}
+.role-btn .riface{font-size:11px;color:var(--text-3)}
+.role-btn .rprod{font-family:var(--mono);font-size:10px;color:var(--accent-2)}
+.deal-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-family:var(--mono);font-size:10px;margin-top:6px}
+.deal-pill.pass{background:#1a0c0c;color:var(--red)}
+.deal-pill.conditional{background:#1a1a0c;color:var(--orange)}
+.deal-pill.proceed{background:#0c1a0c;color:var(--green)}
+.free-badge{background:var(--green);color:#fff;font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:3px;letter-spacing:1px}
+
+/* ═══ MAIN CONTENT ═══ */
+.main-inner{padding:20px;max-width:1200px;margin:0 auto}
+.tab-bar{display:flex;gap:2px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab{padding:8px 16px;font-size:12px;color:var(--text-3);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s}
+.tab:hover{color:var(--text-2)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.panel{display:none}
+.panel.active{display:block}
+
+/* ═══ EVIDENCE GRAPH ═══ */
+.graph-container{position:relative;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:24px;min-height:480px;overflow:hidden}
+.graph-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.graph-svg line{stroke:var(--border-h);stroke-width:1.5;opacity:0.5}
+.graph-svg line.active{stroke:var(--accent);opacity:0.8;stroke-width:2}
+.node{position:absolute;background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;min-width:120px;cursor:pointer;transition:all 0.2s}
+.node:hover{border-color:var(--border-h);transform:translateY(-1px)}
+.node.focus{border-color:var(--accent);background:var(--bg-3);box-shadow:0 0 12px rgba(201,168,76,0.12)}
+.node .ntype{font-family:var(--mono);font-size:9px;color:var(--text-3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px}
+.node .ntitle{font-weight:600;font-size:12px;margin-bottom:4px}
+.node .nstate{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:3px}
+.s-validated{background:#0c1a0c;color:var(--green)}
+.s-unvalidated{background:#0c0c1a;color:var(--blue)}
+.s-refuted{background:#1a0c0c;color:var(--red)}
+.s-watchlist{background:#1a1a0c;color:var(--orange)}
+
+/* ═══ INSPECTOR PANEL ═══ */
+.inspector{display:grid;grid-template-columns:1fr 320px;gap:16px;margin-top:16px}
+.insp-section{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.insp-title{font-family:var(--mono);font-size:10px;color:var(--text-3);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px}
+.claim-item{padding:10px 0;border-bottom:1px solid var(--border)}
+.claim-item:last-child{border-bottom:none}
+.claim-item h4{font-size:13px;font-weight:600;margin-bottom:4px}
+.claim-item p{font-size:12px;color:var(--text-2);line-height:1.5}
+.dissent-item{padding:8px 12px;background:var(--bg-2);border-radius:var(--radius);margin-bottom:6px;font-size:12px;border-left:2px solid var(--red)}
+.kill-switch{border-left-color:var(--red);background:#120a0a}
+
+/* ═══ ANALYTICS (FREE) ═══ */
+.analytics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.metric-card .mv{font-size:28px;font-weight:600;font-family:var(--mono);margin-bottom:4px}
+.metric-card .ml{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px}
+.metric-card .mt{font-size:11px;color:var(--text-2);margin-top:6px}
+.chart-placeholder{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;min-height:200px}
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:160px;padding-top:10px}
+.chart-bar{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-width:20px;transition:height 0.5s;position:relative}
+.chart-bar .bar-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:9px;color:var(--text-3);white-space:nowrap}
+.chart-bar .bar-val{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;color:var(--text-2)}
+
+/* ═══ ROLE WORKBENCH ═══ */
+.wb-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.wb-header h2{font-size:22px;font-weight:600;margin-bottom:4px}
+.wb-header p{color:var(--text-2);font-size:13px;max-width:600px}
+.focus-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{padding:4px 10px;background:var(--bg-2);border:1px solid var(--border);border-radius:12px;font-size:11px;color:var(--text-2)}
+.chip.primary{border-color:var(--accent);color:var(--accent)}
+.wb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.wb-card{background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.wb-card h3{font-size:14px;font-weight:600;margin-bottom:8px}
+.wb-card p{font-size:12px;color:var(--text-2);line-height:1.5}
+.wb-card .wb-tag{font-family:var(--mono);font-size:10px;color:var(--accent-2);margin-top:8px}
+
+/* ═══ PRICING ═══ */
+.pricing-strip{background:var(--bg-1);border:1px solid var(--accent);border-radius:var(--radius);padding:20px;margin-top:20px;display:flex;justify-content:space-between;align-items:center;gap:20px}
+.pricing-strip h3{font-size:16px;font-weight:600}
+.pricing-strip p{font-size:12px;color:var(--text-2);margin-top:4px}
+.price-tag{font-family:var(--mono);font-size:28px;color:var(--accent);font-weight:300}
+
+/* ═══ DEAL FACTS ═══ */
+.fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.fact{padding:8px;background:var(--bg-2);border-radius:var(--radius)}
+.fact .fk{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:1px}
+.fact .fv{font-size:13px;font-weight:500;margin-top:2px}
+
+/* ═══ RESPONSIVE ═══ */
+@media(max-width:900px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .inspector{grid-template-columns:1fr}
+  .analytics-grid{grid-template-columns:repeat(2,1fr)}
+  .wb-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">X</div>
+      <div>
+        <div class="brand-name">Xata&Co</div>
+        <div class="brand-tag">Deal Evidence OS</div>
+      </div>
+    </div>
+    <div class="top-metrics">
+      <div class="top-metric"><div class="val" id="tmCoverage">92%</div><div class="lbl">Coverage</div></div>
+      <div class="top-metric"><div class="val" id="tmConfidence">84%</div><div class="lbl">Confidence</div></div>
+      <div class="top-metric"><div class="val" id="tmNodes">11</div><div class="lbl">Nodes</div></div>
+      <div class="top-metric"><div class="val" id="tmGate">G7</div><div class="lbl">Gate</div></div>
+    </div>
+    <div class="top-actions">
+      <span class="free-badge">FREE TIER</span>
+      <button class="btn-ghost" onclick="showTab('pricing')">Upgrade</button>
+      <button class="btn-accent" onclick="showTab('pricing')">Order DD Report</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-section">
+      <div class="sb-label">Deal</div>
+      <select id="dealSelect" onchange="switchDeal(this.value)"></select>
+    </div>
+    <div class="sb-section">
+      <div class="sb-label">Your Role</div>
+      <div class="role-list" id="roleList"></div>
+    </div>
+    <div class="sb-section" style="margin-top:auto;padding-top:16px;border-top:1px solid var(--border)">
+      <div class="sb-label">Free Analytics</div>
+      <button class="role-btn" onclick="showTab('analytics')" style="color:var(--green)">
+        <span class="rname">Open Analytics Dashboard</span>
+        <span class="riface">Public company data, free forever</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="main-inner">
+      <div class="tab-bar">
+        <button class="tab active" data-tab="graph" onclick="showTab('graph')">Evidence Graph</button>
+        <button class="tab" data-tab="workbench" onclick="showTab('workbench')">Role Workbench</button>
+        <button class="tab" data-tab="analytics" onclick="showTab('analytics')">Free Analytics</button>
+        <button class="tab" data-tab="pricing" onclick="showTab('pricing')">Products & Pricing</button>
+      </div>
+
+      <!-- PANEL: EVIDENCE GRAPH -->
+      <div class="panel active" id="panel-graph">
+        <div class="graph-container" id="graphContainer">
+          <svg class="graph-svg" id="edgeSvg" viewBox="0 0 1100 480" preserveAspectRatio="none"></svg>
+          <div id="graphNodes"></div>
+        </div>
+        <div class="inspector">
+          <div class="insp-section">
+            <div class="insp-title">Investment Claims</div>
+            <div id="claimList"></div>
+          </div>
+          <div>
+            <div class="insp-section" style="margin-bottom:12px">
+              <div class="insp-title">Deal Facts</div>
+              <div class="fact-grid" id="dealFacts"></div>
+            </div>
+            <div class="insp-section">
+              <div class="insp-title">Dissent & Kill Switches</div>
+              <div id="dissentList"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PANEL: ROLE WORKBENCH -->
+      <div class="panel" id="panel-workbench">
+        <div class="wb-header">
+          <div>
+            <h2 id="wbTitle">Analyst Evidence Workbench</h2>
+            <p id="wbJob"></p>
+            <div class="focus-chips" id="wbChips"></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text-3);letter-spacing:1px;margin-bottom:4px">PRIMARY PRODUCT</div>
+            <div style="font-size:16px;font-weight:600" id="wbProduct"></div>
+          </div>
+        </div>
+        <div class="wb-grid" id="wbBlocks"></div>
+        <div class="pricing-strip" id="wbPricing"></div>
+      </div>
+
+      <!-- PANEL: FREE ANALYTICS -->
+      <div class="panel" id="panel-analytics">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:20px">Free Analytics — <span id="analyticsDeal">Cursor</span></h2>
+            <p style="color:var(--text-2);font-size:13px;margin-top:4px">Public company intelligence. Always free. No card required.</p>
+          </div>
+          <span class="free-badge">FREE FOREVER</span>
+        </div>
+        <div class="analytics-grid" id="analyticsGrid"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="chart-placeholder">
+            <div class="insp-title">Competitive Position Signals</div>
+            <div class="chart-bars" id="compChart"></div>
+          </div>
+          <div class="chart-placeholder">
+            <div class="insp-title">Customer Sentiment Trend</div>
+            <div class="chart-bars" id="sentChart"></div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+          <div class="chart-placeholder">
+            <div class="insp-title">Risk Heatmap</div>
+            <div id="riskHeatmap" style="margin-top:12px"></div>
+          </div>
+          <div class="chart-placeholder">
+            <div class="insp-title">Evidence Coverage by Domain</div>
+            <div class="chart-bars" id="covChart"></div>
+          </div>
+        </div>
+        <div class="pricing-strip" style="margin-top:20px">
+          <div>
+            <h3>Want the full picture?</h3>
+            <p>Free analytics show public signals. Our DD reports add proprietary research, management assessment, bear cases, and IC-ready deliverables.</p>
+          </div>
+          <button class="btn-accent" onclick="showTab('pricing')">See DD Reports →</button>
+        </div>
+      </div>
+
+      <!-- PANEL: PRICING -->
+      <div class="panel" id="panel-pricing">
+        <h2 style="font-size:20px;margin-bottom:4px">DD Reports — Xata&Co</h2>
+        <p style="color:var(--text-2);margin-bottom:24px">MBB-grade diligence. Not 6 weeks. From $49.</p>
+        <div id="pricingGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ DATA ═══
+
+const ROLES = [
+  { role:"Analyst", iface:"Analyst Evidence Workbench", product:"Channel Economics Report", price:699,
+    job:"Audit source quality, economics assumptions, and provenance before the case reaches senior review.",
+    focus:["source coverage","unit economics","provenance","unvalidated claims"],
+    nodes:["evidence","channel","valuation","artifact"],
+    blocks:[
+      {title:"Source Provenance Audit",desc:"Every claim traced to its original source. Red flags on circular references, stale data, and missing citations.",tag:"FREE"},
+      {title:"Unit Economics Validator",desc:"LTV/CAC/payback cross-check against industry benchmarks. Flags anomalies in channel economics.",tag:"PAID"},
+      {title:"Evidence Gap Detector",desc:"Identifies which graph nodes have insufficient evidence coverage. Prioritizes next research actions.",tag:"FREE"}
+    ]},
+  { role:"VP/Sr Associate", iface:"Associate DD Workbench", product:"Customer Signal Intelligence", price:799,
+    job:"Turn fragmented customer and market signals into a clean diligence workplan.",
+    focus:["customer pull","adoption friction","competitor signal","case deltas"],
+    nodes:["customer","claim","risk","artifact"],
+    blocks:[
+      {title:"Customer Signal Dashboard",desc:"Aggregated G2, Trustpilot, Reddit, and LinkedIn signals. Sentiment scoring and trend analysis.",tag:"FREE"},
+      {title:"Competitive Heat Map",desc:"Market share estimates and competitive positioning. Moat durability scoring across 12 vectors.",tag:"PAID"},
+      {title:"Diligence Workplan Generator",desc:"Converts evidence gaps into a prioritized research workplan with estimated hours and sources.",tag:"PAID"}
+    ]},
+  { role:"Principal", iface:"Principal Conviction Builder", product:"Customer Signal Intelligence", price:799,
+    job:"Build a conviction path with explicit uncertainty, refutation, and escalation gates.",
+    focus:["conviction path","refuted hypotheses","kill switches","decision gates"],
+    nodes:["claim","customer","dissent","risk"],
+    blocks:[
+      {title:"Conviction Path Tracker",desc:"Visual map from evidence through claims to recommendation. Shows exactly where conviction breaks.",tag:"FREE"},
+      {title:"Hypothesis Scorecard",desc:"10-hypothesis framework: each scored Proven/Disproven/Uncertain with evidence links.",tag:"PAID"},
+      {title:"Refutation Log",desc:"Every refuted hypothesis preserved with the evidence that killed it. Prevents zombie arguments.",tag:"FREE"}
+    ]},
+  { role:"Partner", iface:"Partner Decision Brief", product:"Management Team Assessment", price:899,
+    job:"Convert evidence into a crisp recommendation, caveats, and management read.",
+    focus:["recommendation","team risk","IC narrative","client-ready brief"],
+    nodes:["management","dissent","valuation","artifact"],
+    blocks:[
+      {title:"Management DNA Profile",desc:"Leadership assessment: track record, tenure signals, Glassdoor patterns, reference intelligence.",tag:"PAID"},
+      {title:"Decision Brief Generator",desc:"Auto-generates the 2-page partner brief from graph evidence. Recommendation + top 3 caveats.",tag:"PAID"},
+      {title:"IC Narrative Builder",desc:"Structures the story arc for IC presentation. Problem / evidence / conviction / ask.",tag:"PAID"}
+    ]},
+  { role:"GP/MD", iface:"GP Portfolio Decision Console", product:"Management Team Assessment", price:899,
+    job:"Compare this deal against portfolio exposure, manager thesis, and risk budget.",
+    focus:["portfolio impact","team quality","downside control","follow-on logic"],
+    nodes:["portfolio","management","risk","valuation"],
+    blocks:[
+      {title:"Portfolio Exposure Check",desc:"How this deal affects sector concentration, vintage diversification, and risk budget.",tag:"FREE"},
+      {title:"Manager Thesis Fit",desc:"Does this deal align with the fund thesis? Where does it stretch vs. reinforce?",tag:"FREE"},
+      {title:"Downside Scenario Console",desc:"Three bear case scenarios with full P&L impact. Revenue sensitivity and exit timeline stress test.",tag:"PAID"}
+    ]},
+  { role:"IC Member", iface:"IC Pre-read and Dissent Board", product:"Management Team Assessment", price:899,
+    job:"Read the strongest arguments for and against the deal before voting.",
+    focus:["dissent","vote blockers","unresolved questions","decision memo"],
+    nodes:["dissent","claim","risk","artifact"],
+    blocks:[
+      {title:"Bull Case Summary",desc:"The strongest possible argument for the deal, built from validated evidence only.",tag:"FREE"},
+      {title:"Bear Case & Kill Switches",desc:"Adversarial case built by our team. Three scenarios that could destroy the thesis.",tag:"PAID"},
+      {title:"Dissent Board",desc:"Unresolved questions and live objections. Each tracked to resolution or escalation.",tag:"FREE"}
+    ]},
+  { role:"LP/Family Office", iface:"LP Portfolio Lens", product:"Annual Portfolio Monitoring", price:4999,
+    job:"Monitor how deal evidence changes manager quality, concentration, and capital calls.",
+    focus:["manager signal","portfolio drift","risk monitoring","annual review"],
+    nodes:["portfolio","risk","management","evidence"],
+    blocks:[
+      {title:"Manager Health Dashboard",desc:"Quarterly health signals for each GP relationship. AUM, deal pace, team stability.",tag:"FREE"},
+      {title:"Portfolio Drift Monitor",desc:"How has your LP portfolio drifted from target allocation? Sector, vintage, geography.",tag:"FREE"},
+      {title:"Independent Company Assessment",desc:"Deep dive into a single portfolio company without relying on the GP's quarterly letter.",tag:"PAID"}
+    ]},
+  { role:"LP/Institutional", iface:"Institutional LP Risk Lens", product:"LP Co-Investment Screening", price:3499,
+    job:"Screen co-investment exposure with policy-grade risk, dissent, and scenario coverage.",
+    focus:["co-investment risk","policy fit","scenario loss","committee evidence"],
+    nodes:["portfolio","dissent","risk","valuation"],
+    blocks:[
+      {title:"Policy Compliance Checker",desc:"Does this co-investment fit your institution's investment policy? Auto-flag violations.",tag:"FREE"},
+      {title:"Co-Investment Risk Screen",desc:"Independent risk assessment: concentration, correlation with existing PE/VC exposure.",tag:"PAID"},
+      {title:"Committee Evidence Pack",desc:"Everything your investment committee needs: summary, risk, scenario analysis, recommendation.",tag:"PAID"}
+    ]},
+  { role:"Angel", iface:"Angel Fast Check", product:"Customer Signal Intelligence", price:799,
+    job:"Decide whether a deal deserves another diligence cycle without drowning in artifacts.",
+    focus:["fast yes/no","customer pain","valuation sanity","next question"],
+    nodes:["customer","valuation","claim","risk"],
+    blocks:[
+      {title:"60-Second Deal Read",desc:"One-page: market, team, traction, valuation. Green/yellow/red on each. Takes 60 seconds to read.",tag:"FREE"},
+      {title:"Valuation Sanity Check",desc:"Is the asking price reasonable? Comparable deals, public comps, and revenue multiples.",tag:"FREE"},
+      {title:"Deep Dive Trigger",desc:"Based on the fast check: should you spend more time? If yes, what specifically to investigate.",tag:"FREE"}
+    ]}
+];
+
+const DEALS = [
+  { id:"cursor", name:"Cursor", verdict:"PASS", verdictClass:"pass", confidence:"84%",
+    score:"2.4/10", asking:"$50B pre-money", fair:"$20-26B base / $30-35B optimistic",
+    claims:[
+      {title:"Valuation inversion",body:"Asking price depends on AI coding TAM expansion faster than evidence supports.",state:"watchlist"},
+      {title:"Customer signal strength",body:"Adoption is strong, but enterprise durability and procurement expansion remain under-validated.",state:"unvalidated"},
+      {title:"Bear case pressure",body:"At $50B the entry price absorbs too much future execution upside.",state:"validated"}
+    ],
+    dissent:["What evidence proves net retention survives tool commoditization?","What breaks if model providers bundle the workflow?"],
+    killSwitch:"No enterprise budget owner proof at scale.",
+    analytics:{employees:"~800",arr:"$300M+ est.",growth:"3x YoY",nps:"72",
+      competitors:[{name:"GitHub Copilot",share:45},{name:"Cursor",share:28},{name:"Windsurf",share:12},{name:"Replit",share:8},{name:"Other",share:7}],
+      sentiment:[{m:"Jan",v:72},{m:"Feb",v:74},{m:"Mar",v:71},{m:"Apr",v:76},{m:"May",v:78}],
+      risks:[{r:"Model provider dependency",s:8},{r:"Enterprise procurement",s:6},{r:"Tool commoditization",s:7},{r:"Pricing pressure",s:5},{r:"Talent retention",s:4}],
+      coverage:[{d:"Market",v:88},{d:"Customer",v:72},{d:"Tech",v:65},{d:"Team",v:48},{d:"Financial",v:55}]
+    }},
+  { id:"dydx", name:"dYdX", verdict:"PASS", verdictClass:"pass", confidence:"82%",
+    score:"1.8/10", asking:"$120M market cap", fair:"$29M-$85M",
+    claims:[
+      {title:"Market repricing",body:"Current token price still exceeds risk-adjusted fair value range.",state:"validated"},
+      {title:"Protocol activity",body:"Usage quality and fee durability require more direct verification.",state:"unvalidated"},
+      {title:"Bull case containment",body:"Bull case does not overcome governance and liquidity risk at asking.",state:"refuted"}
+    ],
+    dissent:["Is governance risk priced too harshly?","What on-chain metric would reverse the pass?"],
+    killSwitch:"Fee quality deteriorates for two reporting periods.",
+    analytics:{employees:"~120",arr:"N/A (protocol fees)",growth:"Declining",nps:"N/A",
+      competitors:[{name:"dYdX",share:18},{name:"GMX",share:22},{name:"Hyperliquid",share:35},{name:"Vertex",share:12},{name:"Other",share:13}],
+      sentiment:[{m:"Jan",v:45},{m:"Feb",v:42},{m:"Mar",v:38},{m:"Apr",v:35},{m:"May",v:33}],
+      risks:[{r:"Governance centralization",s:9},{r:"Volume migration",s:8},{r:"Token inflation",s:7},{r:"Regulatory",s:6},{r:"Tech obsolescence",s:5}],
+      coverage:[{d:"Market",v:82},{d:"Customer",v:42},{d:"Tech",v:70},{d:"Team",v:38},{d:"Financial",v:60}]
+    }},
+  { id:"microsoft", name:"Microsoft", verdict:"CONDITIONAL", verdictClass:"conditional", confidence:"68%",
+    score:"5.4/10", asking:"~$470", fair:"$510 base / $380-420 bear",
+    claims:[
+      {title:"AI monetization",body:"Base case depends on Azure/OpenAI monetization translating into durable margins.",state:"unvalidated"},
+      {title:"Downside contained",body:"Bear case is visible but not catastrophic at current strategic position.",state:"watchlist"},
+      {title:"Hypothesis mix",body:"Five confirmed, four uncertain, one refuted creates conditional rather than clean pass.",state:"validated"}
+    ],
+    dissent:["What is the first leading indicator of AI margin disappointment?","Is the market overpaying for option value?"],
+    killSwitch:"Azure AI growth decelerates without margin lift.",
+    analytics:{employees:"228,000",arr:"$245B (FY25)",growth:"+13% YoY",nps:"64",
+      competitors:[{name:"AWS",share:31},{name:"Azure",share:25},{name:"GCP",share:12},{name:"Other",share:32}],
+      sentiment:[{m:"Jan",v:68},{m:"Feb",v:70},{m:"Mar",v:72},{m:"Apr",v:74},{m:"May",v:73}],
+      risks:[{r:"AI capex ROI",s:7},{r:"Antitrust regulation",s:6},{r:"OpenAI dependency",s:8},{r:"Cloud competition",s:5},{r:"Talent wars",s:4}],
+      coverage:[{d:"Market",v:95},{d:"Customer",v:78},{d:"Tech",v:82},{d:"Team",v:60},{d:"Financial",v:92}]
+    }},
+  { id:"tbank", name:"T-Bank", verdict:"CONDITIONAL", verdictClass:"conditional", confidence:"62%",
+    score:"4.2/10", asking:"457.9bn RUB", fair:"380-420bn RUB base",
+    claims:[
+      {title:"Regulatory discount",body:"Sanctions and market access issues dominate investor segmentation.",state:"validated"},
+      {title:"Management execution",body:"Execution quality is a major positive but not enough alone for all investors.",state:"validated"},
+      {title:"Investor-specific verdict",body:"Western and local investors need separate decision paths.",state:"watchlist"}
+    ],
+    dissent:["Is the local-investor upside underweighted?","Can management quality offset macro/regulatory risk?"],
+    killSwitch:"Capital mobility or governance worsens.",
+    analytics:{employees:"~75,000",arr:"N/A (banking)",growth:"+28% NII",nps:"78",
+      competitors:[{name:"Sber",share:30},{name:"T-Bank",share:12},{name:"Alfa",share:8},{name:"VTB",share:18},{name:"Other",share:32}],
+      sentiment:[{m:"Jan",v:76},{m:"Feb",v:78},{m:"Mar",v:75},{m:"Apr",v:80},{m:"May",v:82}],
+      risks:[{r:"Sanctions escalation",s:9},{r:"Capital controls",s:8},{r:"Regulatory change",s:7},{r:"FX volatility",s:6},{r:"Competition",s:4}],
+      coverage:[{d:"Market",v:80},{d:"Customer",v:75},{d:"Tech",v:68},{d:"Team",v:72},{d:"Financial",v:85}]
+    }},
+  { id:"bitcoin", name:"Bitcoin", verdict:"CONDITIONAL", verdictClass:"conditional", confidence:"68%",
+    score:"5.8/10", asking:"Market entry", fair:"$90-100K base",
+    claims:[
+      {title:"Macro dependency",body:"Case quality depends heavily on liquidity regime and risk appetite.",state:"watchlist"},
+      {title:"Bear case materiality",body:"Downside path is credible and must be separated from structural adoption thesis.",state:"validated"},
+      {title:"Evidence gap",body:"Fair value and buyer segmentation need stronger structured inputs.",state:"unvalidated"}
+    ],
+    dissent:["What price invalidates the conditional view?","Which buyer segment is the marginal validator?"],
+    killSwitch:"Liquidity regime flips before thesis confirmation.",
+    analytics:{employees:"N/A (decentralized)",arr:"N/A",growth:"~$109K",nps:"N/A",
+      competitors:[{name:"Bitcoin",share:58},{name:"Ethereum",share:14},{name:"Solana",share:4},{name:"Other L1",share:12},{name:"Stables",share:12}],
+      sentiment:[{m:"Jan",v:62},{m:"Feb",v:58},{m:"Mar",v:64},{m:"Apr",v:70},{m:"May",v:72}],
+      risks:[{r:"Regulatory crackdown",s:6},{r:"Macro liquidity",s:8},{r:"Correlation to risk assets",s:7},{r:"Custody risk",s:4},{r:"Network security",s:3}],
+      coverage:[{d:"Market",v:90},{d:"Customer",v:35},{d:"Tech",v:78},{d:"Team",v:20},{d:"Financial",v:70}]
+    }}
+];
+
+const GRAPH_NODES = [
+  {id:"deal",type:"Deal",title:"DD Deal",x:5,y:8},
+  {id:"artifact",type:"Artifact",title:"Reports & Deliverables",x:38,y:4},
+  {id:"evidence",type:"Evidence",title:"Sources & Provenance",x:5,y:42},
+  {id:"claim",type:"Claim",title:"Investment Hypotheses",x:28,y:38},
+  {id:"customer",type:"Signal",title:"Customer Intelligence",x:52,y:34},
+  {id:"channel",type:"Economics",title:"Channel Economics",x:75,y:38},
+  {id:"management",type:"Team",title:"Management Assessment",x:16,y:76},
+  {id:"valuation",type:"Price",title:"Valuation Gap",x:42,y:78},
+  {id:"risk",type:"Risk",title:"Risk Register",x:64,y:76},
+  {id:"dissent",type:"Dissent",title:"IC Objections",x:78,y:8},
+  {id:"portfolio",type:"Portfolio",title:"LP / GP Exposure",x:85,y:76}
+];
+
+const GRAPH_EDGES = [
+  ["deal","artifact"],["deal","evidence"],["evidence","claim"],["claim","customer"],
+  ["customer","channel"],["claim","valuation"],["valuation","risk"],
+  ["management","risk"],["risk","dissent"],["risk","portfolio"],["artifact","dissent"]
+];
+
+const PRODUCTS = [
+  {name:"Flash DD",price:49,delivery:"1 hour",desc:"5-page AI scan. Any public company. Key metrics, competitive position, 3 red flags.",tier:"Entry"},
+  {name:"Deal Breaker Check",price:149,delivery:"24 hours",desc:"10-page report. Red flags only. Will this deal survive first IC review?",tier:"Entry"},
+  {name:"Bear Case Generator",price:749,delivery:"72 hours",desc:"18-page adversarial brief. Three fully-modeled bear scenarios.",tier:"Standard"},
+  {name:"Customer Signal Intelligence",price:799,delivery:"72 hours",desc:"22-page voice-of-customer synthesis. G2, Trustpilot, Reddit, LinkedIn signals.",tier:"Standard"},
+  {name:"Management Team Assessment",price:899,delivery:"72 hours",desc:"24-page leadership assessment. Track record, tenure signals, reference intelligence.",tier:"Standard"},
+  {name:"Channel Economics Report",price:699,delivery:"72 hours",desc:"20-page CAC by channel breakdown. Payback periods, unit economics validation.",tier:"Standard"},
+  {name:"Pre-IC Full Package",price:2499,delivery:"7 days",desc:"50-page IC-ready report. Market, team, financials, risk matrix, bear cases, recommendation.",tier:"Enterprise"},
+  {name:"Full Investment Memo",price:4999,delivery:"14 days",desc:"80-page investment memorandum. Every section. IC-ready. Unlimited revisions.",tier:"Enterprise"},
+  {name:"LP Portfolio Deep Dive",price:2999,delivery:"7 days",desc:"55-page independent assessment of a single portfolio company. For LPs who want real answers.",tier:"Enterprise"},
+  {name:"Strategic Acquirer Report",price:3999,delivery:"7 days",desc:"65-page M&A target assessment. Market, moat, technology, management, risk, bear cases.",tier:"Enterprise"},
+  {name:"Annual Portfolio Monitoring",price:4999,delivery:"Quarterly",desc:"4 structured health checks per year per company. Early warning system.",tier:"Subscription"},
+  {name:"LP Co-Investment Screening",price:3499,delivery:"7 days",desc:"55-page co-investment opportunity analysis. Policy fit, risk, scenario coverage.",tier:"Enterprise"}
+];
+
+// ═══ STATE ═══
+let currentRole = ROLES[0];
+let currentDeal = DEALS[0];
+
+// ═══ INIT ═══
+function init() {
+  renderDealSelect();
+  renderRoles();
+  renderGraph();
+  update();
+}
+
+function renderDealSelect() {
+  const sel = document.getElementById('dealSelect');
+  DEALS.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id; opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+}
+
+function renderRoles() {
+  const list = document.getElementById('roleList');
+  ROLES.forEach((r,i) => {
+    const btn = document.createElement('button');
+    btn.className = 'role-btn' + (i===0?' active':'');
+    btn.dataset.idx = i;
+    btn.innerHTML = `<span class="rname">${r.role}</span><span class="riface">${r.iface}</span><span class="rprod">${r.product} · $${r.price.toLocaleString()}</span>`;
+    btn.onclick = () => { currentRole = r; update(); };
+    list.appendChild(btn);
+  });
+}
+
+function renderGraph() {
+  const container = document.getElementById('graphContainer');
+  const nodesDiv = document.getElementById('graphNodes');
+  // Render nodes
+  nodesDiv.innerHTML = GRAPH_NODES.map(n => `
+    <div class="node" data-id="${n.id}" style="left:${n.x}%;top:${n.y}%">
+      <div class="ntype">${n.type}</div>
+      <div class="ntitle">${n.title}</div>
+      <div class="nstate" id="ns-${n.id}"></div>
+    </div>`).join('');
+  // Render edges
+  renderEdges();
+}
+
+function renderEdges() {
+  const svg = document.getElementById('edgeSvg');
+  const container = document.getElementById('graphContainer');
+  const rect = container.getBoundingClientRect();
+  const w = rect.width || 1100, h = rect.height || 480;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = GRAPH_EDGES.map(([from,to]) => {
+    const fn = GRAPH_NODES.find(n=>n.id===from);
+    const tn = GRAPH_NODES.find(n=>n.id===to);
+    const x1 = fn.x/100*w+60, y1 = fn.y/100*h+30;
+    const x2 = tn.x/100*w+60, y2 = tn.y/100*h+30;
+    const isActive = currentRole.nodes.includes(from) && currentRole.nodes.includes(to);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${isActive?'active':''}" />`;
+  }).join('');
+}
+
+function switchDeal(id) { currentDeal = DEALS.find(d=>d.id===id)||DEALS[0]; update(); }
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id==='panel-'+name));
+}
+
+function update() {
+  // Topbar
+  document.getElementById('tmConfidence').textContent = currentDeal.confidence;
+  document.getElementById('tmCoverage').textContent = currentDeal.analytics ?
+    Math.round(currentDeal.analytics.coverage.reduce((s,c)=>s+c.v,0)/currentDeal.analytics.coverage.length)+'%' : '92%';
+
+  // Sidebar roles
+  document.querySelectorAll('.role-btn[data-idx]').forEach(b => {
+    b.classList.toggle('active', ROLES[b.dataset.idx] === currentRole);
+  });
+
+  // Graph nodes
+  document.querySelectorAll('.node').forEach(n => {
+    const id = n.dataset.id;
+    n.classList.toggle('focus', currentRole.nodes.includes(id));
+    const claim = currentDeal.claims.find(c => {
+      if(id==='valuation') return c.title.toLowerCase().includes('valuation') || c.title.toLowerCase().includes('market');
+      if(id==='customer') return c.title.toLowerCase().includes('customer') || c.title.toLowerCase().includes('signal');
+      if(id==='risk') return c.title.toLowerCase().includes('bear') || c.title.toLowerCase().includes('risk');
+      return false;
+    });
+    const stateEl = document.getElementById('ns-'+id);
+    if(claim) {
+      stateEl.textContent = claim.state;
+      stateEl.className = 'nstate s-'+claim.state;
+    } else {
+      stateEl.textContent = 'watchlist';
+      stateEl.className = 'nstate s-watchlist';
+    }
+  });
+  renderEdges();
+
+  // Claims
+  document.getElementById('claimList').innerHTML = currentDeal.claims.map(c => `
+    <div class="claim-item">
+      <h4>${c.title} <span class="nstate s-${c.state}" style="font-size:10px;vertical-align:middle">${c.state}</span></h4>
+      <p>${c.body}</p>
+    </div>`).join('');
+
+  // Deal facts
+  document.getElementById('dealFacts').innerHTML = `
+    <div class="fact"><div class="fk">Verdict</div><div class="fv"><span class="deal-pill ${currentDeal.verdictClass}">${currentDeal.verdict}</span></div></div>
+    <div class="fact"><div class="fk">Score</div><div class="fv">${currentDeal.score}</div></div>
+    <div class="fact"><div class="fk">Asking</div><div class="fv">${currentDeal.asking}</div></div>
+    <div class="fact"><div class="fk">Fair Value</div><div class="fv">${currentDeal.fair}</div></div>`;
+
+  // Dissent
+  document.getElementById('dissentList').innerHTML =
+    currentDeal.dissent.map(d => `<div class="dissent-item">${d}</div>`).join('') +
+    `<div class="dissent-item kill-switch"><strong>Kill Switch:</strong> ${currentDeal.killSwitch}</div>`;
+
+  // Workbench
+  document.getElementById('wbTitle').textContent = currentRole.iface;
+  document.getElementById('wbJob').textContent = currentRole.job;
+  document.getElementById('wbProduct').textContent = currentRole.product;
+  document.getElementById('wbChips').innerHTML = currentRole.focus.map((f,i) =>
+    `<span class="chip ${i===0?'primary':''}">${f}</span>`).join('');
+  document.getElementById('wbBlocks').innerHTML = currentRole.blocks.map(b => `
+    <div class="wb-card">
+      <h3>${b.title}</h3>
+      <p>${b.desc}</p>
+      <div class="wb-tag">${b.tag==='FREE'?'<span class="free-badge">FREE</span>':'INCLUDED IN DD REPORT'}</div>
+    </div>`).join('');
+  document.getElementById('wbPricing').innerHTML = `
+    <div><h3>Get the full ${currentRole.product}</h3>
+    <p>Upgrade from free analytics to the complete ${currentRole.product} with proprietary research, management assessment, and IC-ready deliverables.</p></div>
+    <div style="text-align:right"><div class="price-tag">$${currentRole.price.toLocaleString()}</div>
+    <button class="btn-accent" style="margin-top:8px">Order Now →</button></div>`;
+
+  // Analytics
+  if(currentDeal.analytics) {
+    const a = currentDeal.analytics;
+    document.getElementById('analyticsDeal').textContent = currentDeal.name;
+    document.getElementById('analyticsGrid').innerHTML = `
+      <div class="metric-card"><div class="mv">${a.employees}</div><div class="ml">Employees</div><div class="mt">LinkedIn estimate</div></div>
+      <div class="metric-card"><div class="mv">${a.arr}</div><div class="ml">Revenue</div><div class="mt">Public estimate</div></div>
+      <div class="metric-card"><div class="mv">${a.growth}</div><div class="ml">Growth</div><div class="mt">Year-over-year</div></div>
+      <div class="metric-card"><div class="mv">${a.nps}</div><div class="ml">NPS</div><div class="mt">Customer signal</div></div>`;
+    // Competition chart
+    document.getElementById('compChart').innerHTML = a.competitors.map(c =>
+      `<div class="chart-bar" style="height:${c.share*2}px;background:${c.name===currentDeal.name?'var(--accent)':'var(--bg-3)'}">
+        <span class="bar-val">${c.share}%</span><span class="bar-label">${c.name}</span></div>`).join('');
+    // Sentiment chart
+    document.getElementById('sentChart').innerHTML = a.sentiment.map(s =>
+      `<div class="chart-bar" style="height:${s.v*2}px;background:${s.v>65?'var(--green)':s.v>50?'var(--orange)':'var(--red)'}">
+        <span class="bar-val">${s.v}</span><span class="bar-label">${s.m}</span></div>`).join('');
+    // Risk heatmap
+    document.getElementById('riskHeatmap').innerHTML = a.risks.map(r =>
+      `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:${r.s*10}%;height:24px;background:${r.s>=7?'var(--red)':r.s>=5?'var(--orange)':'var(--green)'};border-radius:3px;min-width:20px"></div>
+        <span style="font-size:12px;color:var(--text-2)">${r.r} (${r.s}/10)</span></div>`).join('');
+    // Coverage chart
+    document.getElementById('covChart').innerHTML = a.coverage.map(c =>
+      `<div class="chart-bar" style="height:${c.v*1.5}px;background:${c.v>=75?'var(--green)':c.v>=50?'var(--blue)':'var(--red)'}">
+        <span class="bar-val">${c.v}%</span><span class="bar-label">${c.d}</span></div>`).join('');
+  }
+
+  // Pricing
+  const tiers = {Entry:[],Standard:[],Enterprise:[],Subscription:[]};
+  PRODUCTS.forEach(p => tiers[p.tier]?.push(p));
+  document.getElementById('pricingGrid').innerHTML = Object.entries(tiers).filter(([,v])=>v.length).map(([tier,prods]) => `
+    <div class="insp-section">
+      <div class="insp-title">${tier}</div>
+      ${prods.map(p => `
+        <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline">
+            <strong style="font-size:13px">${p.name}</strong>
+            <span style="font-family:var(--mono);color:var(--accent);font-size:14px">$${p.price.toLocaleString()}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-3);margin:4px 0">${p.delivery} delivery</div>
+          <p style="font-size:12px;color:var(--text-2)">${p.desc}</p>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+window.addEventListener('resize', renderEdges);
+init();
+</script>
+</body>
+</html>

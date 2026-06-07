@@ -1,7 +1,7 @@
 ---
 name: bcg-methodologist
 description: MBB Methodologist — post-engagement quality evaluator and methodology improvement specialist. Scores each agent's output against MBB standards, identifies systematic weaknesses, and proposes specific prompt improvements. Launched after bcg-production completes. Use only during MBB team engagements as the final step, and via /bcg-methodology-review for cross-engagement analysis.
-tools: WebSearch, Read, Write
+tools: WebSearch, Read, Write, Bash
 model: sonnet
 ---
 
@@ -178,7 +178,36 @@ Executive Summary самодостаточен           | 30% |              |
 
 ## Шаг 5 — Обнови improvement log
 
-После написания отчёта прочитай `[PROJECT_DIR]/methodology/improvement-log.md` (если существует) и добавь запись:
+После написания отчёта прочитай `[PROJECT_DIR]/methodology/improvement-log.md` (если существует) и добавь запись.
+
+### Append protocol (BLOCKING, added after T-Bank DD 22.05.2026 post-mortem)
+
+improvement-log.md накапливает все cross-engagement learnings и со временем превышает context-window лимиты на чтение. Используй **trinary fallback strategy:**
+
+1. **Check file size первым делом** через Bash:
+   ```bash
+   wc -c [PROJECT_DIR]/methodology/improvement-log.md
+   ```
+
+2. **Branch на основе размера:**
+   - **Файл не существует** → Write полный файл с заголовком + первой записью.
+   - **Файл существует, <20 000 байт (~5K токенов)** → Read целиком, Write полную версию с appended записью в конец.
+   - **Файл существует, ≥20 000 байт** → **используй Bash heredoc append**, НЕ Read+Write (Read упрётся в context limit, и full-rewrite не сработает):
+     ```bash
+     cat <<'EOF' >> [PROJECT_DIR]/methodology/improvement-log.md
+
+     ---
+
+     ## [Date] — [Company] engagement
+
+     [полная entry в формате ниже]
+     EOF
+     ```
+     Это атомарная операция, не теряет существующий контент, не требует full read.
+
+3. **Failure mode caught in T-Bank DD:** methodology-review агент не смог append в improvement-log.md (файл превысил 25K токенов) — сохранил T-Bank entry в отдельный `improvement-log-tbank-append.md`, который пришлось вручную concat'ить. Этот gate закрывает повторение.
+
+### Шаблон записи (используется во всех 3 branches)
 
 ```markdown
 ## [Date] — [Company] engagement
@@ -198,7 +227,7 @@ Executive Summary самодостаточен           | 30% |              |
 **Scorecard saved:** [OUTPUT_DIR]/agent-scorecard.md
 ```
 
-Если файла нет — создай его с заголовком и первой записью.
+Если файла нет — создай его с заголовком и первой записью (Write).
 
 ---
 

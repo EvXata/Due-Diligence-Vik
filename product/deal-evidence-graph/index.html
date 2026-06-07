@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Deal Evidence Graph</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="role-rail">
+        <div class="brand-block">
+          <div class="brand-kicker">CODEX STRAT MAS</div>
+          <h1>Deal Evidence Graph</h1>
+        </div>
+        <div class="rail-section">
+          <label for="dealSelect">Deal</label>
+          <select id="dealSelect"></select>
+        </div>
+        <div class="rail-section">
+          <div class="section-label">Role-native interfaces</div>
+          <div id="roleList" class="role-list"></div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div>
+            <div class="eyebrow" id="selectedRole">Analyst</div>
+            <h2 id="interfaceTitle">Analyst Evidence Workbench</h2>
+          </div>
+          <div class="status-strip">
+            <div><span id="coverageMetric">92%</span><small>graph coverage</small></div>
+            <div><span id="confidenceMetric">84%</span><small>case confidence</small></div>
+            <div><span id="gateMetric">G7</span><small>delivery gate</small></div>
+          </div>
+        </header>
+
+        <nav class="tabs" aria-label="Workspace tabs">
+          <button class="tab-button is-active" data-tab="graph">Evidence Graph</button>
+          <button class="tab-button" data-tab="workbench">Role Workbench</button>
+          <button class="tab-button" data-tab="pipeline">v9 Workflow</button>
+          <button class="tab-button" data-tab="tests">Test Status</button>
+        </nav>
+
+        <section id="graph" class="tab-panel is-active">
+          <div class="graph-layout">
+            <section class="graph-stage" aria-label="Deal evidence graph">
+              <svg id="edgeLayer" class="edge-layer" viewBox="0 0 960 560" preserveAspectRatio="none"></svg>
+              <div id="graphNodes" class="graph-nodes"></div>
+            </section>
+            <aside class="inspector">
+              <div class="panel-title">Selected deal</div>
+              <h3 id="dealTitle">Cursor</h3>
+              <div id="dealBadges" class="badge-row"></div>
+              <dl class="deal-facts">
+                <div><dt>Verdict</dt><dd id="dealVerdict"></dd></div>
+                <div><dt>Score</dt><dd id="dealScore"></dd></div>
+                <div><dt>Asking</dt><dd id="dealAsking"></dd></div>
+                <div><dt>Fair value</dt><dd id="dealFairValue"></dd></div>
+              </dl>
+              <div class="panel-title">Evidence states</div>
+              <div class="state-grid">
+                <span class="state state-validated">Validated</span>
+                <span class="state state-unvalidated">Unvalidated</span>
+                <span class="state state-refuted">Refuted</span>
+                <span class="state state-watchlist">Watchlist</span>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="workbench" class="tab-panel">
+          <div class="workbench-grid">
+            <section class="role-card">
+              <div class="panel-title">Primary product</div>
+              <h3 id="primaryProduct">Channel Economics Report</h3>
+              <p id="roleJob"></p>
+              <div id="focusBlocks" class="focus-blocks"></div>
+            </section>
+            <section class="claims-panel">
+              <div class="panel-title">Decision claims</div>
+              <div id="claimList" class="claim-list"></div>
+            </section>
+            <section class="dissent-panel">
+              <div class="panel-title">Dissent and kill switches</div>
+              <div id="dissentList" class="dissent-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="pipeline" class="tab-panel">
+          <div class="pipeline-header">
+            <div>
+              <div class="panel-title">BCG-team v9 alignment</div>
+              <h3>One graph object through intake, enrichment, decision, and GTM</h3>
+            </div>
+            <span class="pill">68-stage compatible</span>
+          </div>
+          <div id="pipelineGrid" class="pipeline-grid"></div>
+        </section>
+
+        <section id="tests" class="tab-panel">
+          <div class="test-layout">
+            <section>
+              <div class="panel-title">Prototype execution</div>
+              <h3>99% concept executed locally</h3>
+              <p>The static product demonstrates role routing, shared evidence graph, DD vector ingestion, v9 workflow mapping, and acceptance checks. Production agent execution and graph DB persistence remain intentionally out of scope for this localhost build.</p>
+            </section>
+            <section id="testList" class="test-list"></section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

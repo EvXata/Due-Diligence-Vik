@@ -33,6 +33,22 @@ The DD pipeline runs on top of the BCG strategic foundation — BCG phases provi
 
 ## Strategic Due Diligence
 
+### GTM Discovery / Product Tournament Vector
+
+Real DD engagements are converted into a tournament-ready product vector in
+`gtm-discovery/`. The vector includes only deals where `bear_case`, `bull_case`,
+`deep_audit`, or `fast_short` was ordered/produced, and maps each deal to a
+buyer job, product SKU, GTM segment, and tournament score.
+
+```bash
+python3 scripts/build_dd_gtm_vector.py
+```
+
+Core files:
+- `gtm-discovery/dd-deal-vector.csv` — curated source of truth for GTM tournament import
+- `gtm-discovery/tournament-methodology.md` — scoring rubric and product taxonomy
+- `gtm-discovery/gtm-discovery-playbook.md` — outbound hooks and product ladder
+
 ### What You Get — Three-Layer Decision Output
 
 Every DD engagement produces **four deliverables**, ordered by reading time:

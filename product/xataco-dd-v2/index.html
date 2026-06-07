@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xata&Co — Due Diligence Intelligence Platform</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --black:#000;--bg1:#0a0a0a;--bg2:#111;--bg3:#1a1a1a;--bg4:#222;
+  --border:#333;--border-h:#555;--border-a:#ff6600;
+  --orange:#ff6600;--amber:#ff8800;--yellow:#ffcc00;--white:#ccc;--bright:#eee;
+  --dim:#666;--dark:#444;
+  --green:#00cc00;--green-d:#003300;--red:#cc0000;--red-d:#330000;
+  --blue:#0088ff;--blue-d:#001133;--cyan:#00cccc;--magenta:#cc00cc;
+  --mono:"Courier New","Lucida Console","Monaco",monospace;
+  --sans:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--black);color:var(--bright);font-size:14px;line-height:1.6}
+a{color:var(--orange);text-decoration:none}
+a:hover{text-decoration:underline}
+::selection{background:var(--orange);color:var(--black)}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--black)}
+::-webkit-scrollbar-thumb{background:var(--dark)}
+
+/* ═══════════════════════════════════════
+   LANDING PAGE
+   ═══════════════════════════════════════ */
+
+/* NAV */
+.nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,0.92);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 40px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-logo{width:32px;height:32px;background:var(--orange);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:900;font-size:18px;color:var(--black)}
+.nav-name{font-weight:700;font-size:16px;letter-spacing:-0.3px}
+.nav-tag{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:2px;text-transform:uppercase}
+.nav-links{display:flex;gap:28px;align-items:center;font-size:13px}
+.nav-links a{color:var(--dim);transition:color 0.15s}
+.nav-links a:hover{color:var(--bright);text-decoration:none}
+.nav-cta{display:flex;gap:10px;align-items:center}
+.btn-demo{padding:8px 20px;border:1px solid var(--border);color:var(--white);font-size:13px;font-family:var(--sans);cursor:pointer;background:none;transition:all 0.15s}
+.btn-demo:hover{border-color:var(--bright);color:var(--bright)}
+.btn-trial{padding:8px 20px;background:var(--orange);color:var(--black);font-size:13px;font-weight:600;font-family:var(--sans);cursor:pointer;border:none;transition:opacity 0.15s}
+.btn-trial:hover{opacity:0.9}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:120px 40px 80px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 50% 30%,rgba(255,102,0,0.06) 0%,transparent 70%);pointer-events:none}
+.hero-badge{font-family:var(--mono);font-size:11px;color:var(--orange);border:1px solid rgba(255,102,0,0.3);padding:4px 14px;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px;display:inline-block}
+.hero h1{font-size:52px;font-weight:700;letter-spacing:-1.5px;line-height:1.15;max-width:800px;margin-bottom:20px}
+.hero h1 span{color:var(--orange)}
+.hero-sub{font-size:18px;color:var(--dim);max-width:600px;margin-bottom:40px;line-height:1.6}
+.hero-ctas{display:flex;gap:16px;align-items:center;margin-bottom:48px}
+.hero-ctas .btn-trial{padding:14px 32px;font-size:15px}
+.hero-ctas .btn-demo{padding:13px 32px;font-size:15px}
+.hero-proof{display:flex;gap:40px;font-family:var(--mono);font-size:12px;color:var(--dim)}
+.hero-proof .hp-item{text-align:center}
+.hero-proof .hp-val{font-size:28px;color:var(--orange);font-weight:700;display:block}
+.hero-proof .hp-lbl{font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+
+/* BEFORE / AFTER */
+.compare{padding:80px 40px;max-width:1100px;margin:0 auto}
+.compare h2{text-align:center;font-size:28px;font-weight:600;margin-bottom:12px}
+.compare .sub{text-align:center;color:var(--dim);margin-bottom:40px}
+.compare-grid{display:grid;grid-template-columns:1fr 60px 1fr;gap:0;align-items:stretch}
+.compare-col{border:1px solid var(--border);padding:32px;background:var(--bg1)}
+.compare-col h3{font-family:var(--mono);font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
+.compare-col.old h3{color:var(--dim)}
+.compare-col.new h3{color:var(--orange)}
+.compare-col.new{border-color:var(--orange)}
+.compare-arrow{display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--orange)}
+.compare-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1a1a1a;font-size:13px}
+.compare-row .ck{color:var(--dim)}
+.compare-row .cv{font-family:var(--mono)}
+.compare-col.old .cv{color:var(--red)}
+.compare-col.new .cv{color:var(--green)}
+
+/* ROLES */
+.roles-section{padding:80px 40px;max-width:1200px;margin:0 auto}
+.roles-section h2{text-align:center;font-size:28px;font-weight:600;margin-bottom:12px}
+.roles-section .sub{text-align:center;color:var(--dim);margin-bottom:40px}
+.roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.role-card{border:1px solid var(--border);padding:24px;background:var(--bg1);transition:border-color 0.2s}
+.role-card:hover{border-color:var(--border-h)}
+.role-card h3{font-size:15px;font-weight:600;margin-bottom:4px}
+.role-card .rc-iface{font-family:var(--mono);font-size:11px;color:var(--orange);margin-bottom:8px}
+.role-card p{font-size:13px;color:var(--dim);line-height:1.5}
+.role-card .rc-nodes{margin-top:12px;display:flex;gap:6px;flex-wrap:wrap}
+.role-card .rc-node{font-family:var(--mono);font-size:10px;padding:2px 8px;border:1px solid var(--border);color:var(--dim)}
+
+/* DEALS / SAMPLE OUTPUT */
+.deals-section{padding:80px 40px;background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.deals-inner{max-width:1200px;margin:0 auto}
+.deals-section h2{text-align:center;font-size:28px;font-weight:600;margin-bottom:12px}
+.deals-section .sub{text-align:center;color:var(--dim);margin-bottom:40px}
+.deal-showcase{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.deal-terminal{background:var(--black);border:1px solid var(--border);padding:0;font-family:var(--mono);font-size:11px;overflow:hidden}
+.dt-header{background:var(--bg2);padding:4px 8px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;color:var(--dim)}
+.dt-header span:first-child{color:var(--orange)}
+.dt-body{padding:12px}
+.dt-row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #111}
+.dt-k{color:var(--dim);text-transform:uppercase;font-size:10px;letter-spacing:1px}
+.dt-v{text-align:right}
+.dt-pass{color:var(--red)}
+.dt-cond{color:var(--yellow)}
+.dt-grn{color:var(--green)}
+.dt-orn{color:var(--orange)}
+.dt-claims{margin-top:12px}
+.dt-claim{padding:4px 0;border-bottom:1px solid #111}
+.dt-claim .dc-title{color:var(--bright);font-size:11px}
+.dt-claim .dc-state{font-size:9px;margin-left:6px}
+.dt-claim .dc-body{color:var(--dim);font-size:10px;margin-top:2px}
+.dt-claim .dc-src{color:var(--cyan);font-size:9px;margin-top:2px;display:block}
+
+.deal-sidebar{display:flex;flex-direction:column;gap:12px}
+.deal-card{border:1px solid var(--border);padding:16px;background:var(--bg2);cursor:pointer;transition:border-color 0.15s}
+.deal-card:hover,.deal-card.active{border-color:var(--orange)}
+.deal-card h4{font-size:14px;margin-bottom:4px}
+.deal-card .dc-verdict{font-family:var(--mono);font-size:12px;margin-bottom:4px}
+.deal-card .dc-meta{font-size:12px;color:var(--dim)}
+
+/* TRUST */
+.trust-section{padding:80px 40px;max-width:1100px;margin:0 auto;text-align:center}
+.trust-section h2{font-size:28px;font-weight:600;margin-bottom:40px}
+.trust-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center}
+.trust-item{padding:24px;border:1px solid var(--border);background:var(--bg1)}
+.trust-item .ti-icon{font-size:28px;margin-bottom:12px}
+.trust-item h4{font-size:14px;margin-bottom:6px}
+.trust-item p{font-size:12px;color:var(--dim);line-height:1.5}
+
+/* CTA */
+.final-cta{padding:100px 40px;text-align:center;background:var(--bg1);border-top:1px solid var(--border)}
+.final-cta h2{font-size:36px;font-weight:700;margin-bottom:16px}
+.final-cta p{color:var(--dim);font-size:16px;margin-bottom:32px;max-width:500px;margin-left:auto;margin-right:auto}
+.final-cta .btn-trial{padding:16px 40px;font-size:16px}
+.final-cta .fc-sub{margin-top:16px;font-size:12px;color:var(--dark)}
+
+/* FOOTER */
+.footer{padding:40px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--dark)}
+.footer a{color:var(--dim)}
+
+/* ═══════════════════════════════════════
+   TERMINAL (opens via CTA)
+   ═══════════════════════════════════════ */
+.terminal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;background:var(--black)}
+.terminal-overlay.active{display:block}
+.t-shell{display:grid;grid-template-columns:200px 1fr;grid-template-rows:24px 28px 1fr 20px;height:100vh;font-family:var(--mono);font-size:11px}
+
+/* Terminal header */
+.t-header{grid-column:1/-1;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 8px;gap:10px;font-size:10px}
+.t-hdr-brand{color:var(--orange);font-weight:bold;font-size:11px;letter-spacing:2px}
+.t-hdr-sep{color:var(--dark)}
+.t-hdr-dim{color:var(--dim)}
+.t-hdr-val{color:var(--amber)}
+.t-hdr-grn{color:var(--green)}
+.t-hdr-right{margin-left:auto;display:flex;gap:10px;align-items:center}
+.t-hdr-time{color:var(--yellow)}
+.t-hdr-close{color:var(--red);cursor:pointer;padding:0 6px;font-size:12px}
+.t-hdr-close:hover{color:#ff4444}
+
+/* Function keys */
+.t-fnbar{grid-column:1/-1;background:var(--bg1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 8px}
+.t-fn{padding:4px 10px;color:var(--dim);border-right:1px solid var(--border);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px}
+.t-fn:hover{background:var(--bg3);color:var(--white)}
+.t-fn.active{background:var(--orange);color:var(--black);font-weight:bold}
+.t-fn .fn-num{font-size:8px;color:var(--dark)}
+.t-fn.active .fn-num{color:var(--bg2)}
+.t-fn-spacer{flex:1}
+.t-fn-deal{display:flex;align-items:center;gap:4px;padding:0 8px;border-left:1px solid var(--border)}
+.t-fn-deal select{font-family:var(--mono);font-size:10px;background:var(--bg2);color:var(--orange);border:1px solid var(--border);padding:2px 4px}
+
+/* Sidebar */
+.t-sidebar{grid-row:3;background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;font-size:10px}
+.t-sb-hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:3px 6px;color:var(--orange);letter-spacing:2px;display:flex;justify-content:space-between}
+.t-sb-hdr span{color:var(--dim)}
+.t-role{text-align:left;padding:3px 6px;display:flex;flex-direction:column;border-bottom:1px solid #1a1a1a;cursor:pointer;width:100%;background:none;border-left:none;border-right:none;border-top:none;font-family:var(--mono);font-size:10px;color:var(--white)}
+.t-role:hover{background:var(--bg2)}
+.t-role.active{background:var(--bg3);border-left:2px solid var(--orange);padding-left:4px}
+.t-role.active .tr-name{color:var(--orange)}
+.t-role .tr-name{font-size:10px}
+.t-role .tr-iface{color:var(--dim);font-size:9px}
+
+/* Main */
+.t-main{grid-row:3;overflow-y:auto;background:var(--black)}
+.t-panel{display:none;height:100%}
+.t-panel.active{display:flex;flex-direction:column}
+
+/* Statusbar */
+.t-status{grid-column:1/-1;background:var(--bg2);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 8px;gap:14px;font-size:9px;color:var(--dim)}
+.t-st-orn{color:var(--orange)}
+.t-st-grn{color:var(--green)}
+.t-st-right{margin-left:auto;display:flex;gap:14px}
+
+/* Graph */
+.t-graph-wrap{flex:1;position:relative;overflow:hidden}
+.t-graph-wrap svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.t-graph-wrap svg line{stroke:var(--dark);stroke-width:1;opacity:0.5}
+.t-graph-wrap svg line.active{stroke:var(--orange);opacity:0.9;stroke-width:2}
+.gnode{position:absolute;border:1px solid var(--border);padding:4px 6px;min-width:100px;cursor:pointer;background:var(--bg1);font-size:10px}
+.gnode:hover{border-color:var(--border-h)}
+.gnode.focus{border-color:var(--orange);background:var(--bg2)}
+.gnode .gn-type{color:var(--dim);font-size:8px;letter-spacing:1px;text-transform:uppercase}
+.gnode .gn-title{color:var(--white);font-size:10px}
+.gnode.focus .gn-title{color:var(--orange)}
+.gnode .gn-state{font-size:9px}
+.gnode .gn-vsq{font-size:8px;color:var(--cyan);display:none}
+.gnode.focus .gn-vsq{display:block}
+.st-validated{color:var(--green)}.st-unvalidated{color:var(--blue)}.st-refuted{color:var(--red)}.st-watchlist{color:var(--yellow)}
+
+/* Inspector */
+.t-insp{display:grid;grid-template-columns:1fr 1fr 280px;border-top:1px solid var(--border);min-height:180px}
+.t-insp>div{border-right:1px solid var(--border);overflow-y:auto;max-height:200px}
+.t-insp>div:last-child{border-right:none}
+.t-sec-hdr{background:var(--bg2);border-bottom:1px solid var(--border);padding:2px 6px;color:var(--orange);font-size:9px;letter-spacing:2px;display:flex;justify-content:space-between}
+.t-sec-hdr .sh-dim{color:var(--dim);letter-spacing:0}
+.t-insp-row{padding:3px 6px;border-bottom:1px solid #1a1a1a;font-size:10px}
+.t-insp-row:hover{background:var(--bg2)}
+.t-insp-row .ir-title{color:var(--white)}
+.t-insp-row .ir-body{color:var(--dim);font-size:9px;margin-top:1px}
+.t-insp-row .ir-src{color:var(--cyan);font-size:8px;margin-top:1px;cursor:pointer}
+.t-insp-row .ir-src:hover{text-decoration:underline}
+.dissent-r{padding:3px 6px;border-bottom:1px solid #1a1a1a;font-size:10px;border-left:2px solid var(--red);margin:1px 0 1px 4px}
+.dissent-r.kill{border-left-color:var(--red);background:var(--red-d);color:var(--red)}
+.fact-r{display:flex;justify-content:space-between;padding:2px 6px;border-bottom:1px solid #1a1a1a;font-size:10px}
+.fact-r .fk{color:var(--dim);text-transform:uppercase;font-size:9px}
+.fact-r .fv{color:var(--amber);text-align:right}
+.dp-pass{color:var(--red)}.dp-conditional{color:var(--yellow)}
+
+/* VQ bar */
+.t-vq{display:flex;border-top:1px solid var(--border);background:var(--bg1);font-size:9px}
+.t-vq-item{flex:1;padding:2px 6px;border-right:1px solid var(--border)}
+.t-vq-item:last-child{border-right:none}
+.t-vq-item .vn{color:var(--dim)}.t-vq-item .vv{color:var(--green);font-size:11px}
+
+/* Workbench */
+.t-wb-top{display:grid;grid-template-columns:1fr 240px;border-bottom:1px solid var(--border)}
+.t-wb-info{padding:8px}
+.t-wb-info h2{color:var(--orange);font-size:13px;font-weight:bold;letter-spacing:1px}
+.t-wb-info p{color:var(--dim);font-size:10px;margin-top:2px}
+.t-wb-chips{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+.t-wb-chip{padding:1px 6px;border:1px solid var(--border);font-size:9px;color:var(--dim)}
+.t-wb-chip.pri{border-color:var(--orange);color:var(--orange)}
+.t-wb-prod{padding:8px;border-left:1px solid var(--border);text-align:right}
+.t-wb-prod .wp-l{color:var(--dim);font-size:8px;letter-spacing:1px}
+.t-wb-prod .wp-n{color:var(--amber);font-size:12px;margin-top:2px}
+.t-wb-prod .wp-r{color:var(--dim);font-size:9px;margin-top:2px}
+.t-wb-blocks{display:grid;grid-template-columns:repeat(3,1fr);flex:1}
+.t-wb-block{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px;display:flex;flex-direction:column;font-size:10px}
+.t-wb-block:nth-child(3n){border-right:none}
+.t-wb-block h3{color:var(--white);font-size:11px;margin-bottom:4px}
+.t-wb-block p{color:var(--dim);font-size:10px;flex:1}
+.t-wb-block .tag-free{color:var(--green);border:1px solid var(--green);padding:0 4px;font-size:9px;display:inline-block;margin-top:6px}
+.t-wb-block .tag-paid{color:var(--dim);font-size:9px;margin-top:6px}
+.t-wb-cta{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--orange);padding:6px 8px;background:var(--bg1)}
+.t-wb-cta .wc-text{color:var(--white);font-size:11px}
+.t-wb-cta .wc-sub{color:var(--dim);font-size:9px}
+.t-wb-cta-btn{background:var(--orange);color:var(--black);padding:4px 14px;font-weight:bold;font-size:11px;cursor:pointer;border:none;font-family:var(--mono)}
+
+/* Signal rows */
+.t-sig-hdr{display:flex;justify-content:space-between;padding:4px 8px;background:var(--bg1);border-bottom:1px solid var(--border);align-items:center}
+.t-sig-filters{display:flex;gap:0}
+.t-sig-fb{padding:2px 8px;font-size:9px;color:var(--dim);border:1px solid var(--border);border-left:none;cursor:pointer;background:none;font-family:var(--mono)}
+.t-sig-fb:first-child{border-left:1px solid var(--border)}
+.t-sig-fb:hover{background:var(--bg2);color:var(--white)}
+.t-sig-fb.active{background:var(--orange);color:var(--black);font-weight:bold}
+.t-sig-row{display:grid;grid-template-columns:70px 1fr 60px 80px;padding:3px 8px;border-bottom:1px solid #1a1a1a;font-size:10px;align-items:center}
+.t-sig-row:hover{background:var(--bg2)}
+.sr-demand{color:var(--cyan)}.sr-ecosystem{color:var(--green)}.sr-referral{color:var(--magenta)}.sr-content{color:var(--blue)}.sr-niche{color:var(--yellow)}
+.sr-str{display:flex;gap:1px}.sr-str .sd{width:3px;height:8px;background:var(--dark)}.sr-str .sd.on{background:var(--orange)}
+
+/* Engine cards */
+.t-eng-top{display:grid;grid-template-columns:repeat(5,1fr);border-bottom:1px solid var(--border)}
+.t-eng-card{border-right:1px solid var(--border);padding:6px;font-size:10px}
+.t-eng-card:last-child{border-right:none}
+.t-eng-card .ec-rank{color:var(--dark);font-size:14px;float:right}
+.t-eng-card .ec-name{color:var(--orange);font-size:11px;font-weight:bold;margin-bottom:4px}
+.t-eng-card .ec-desc{color:var(--dim);font-size:9px;margin-bottom:6px}
+.t-eng-card .ec-stats{display:flex;gap:10px}
+.t-eng-card .ev{font-size:12px;font-weight:bold}.t-eng-card .el{font-size:8px;color:var(--dim);text-transform:uppercase}
+.t-eng-bar{height:2px;background:var(--bg3);margin-top:4px}.t-eng-bar-fill{height:100%}
+
+/* Analytics */
+.t-an-metrics{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--border)}
+.t-an-m{border-right:1px solid var(--border);padding:8px;text-align:center}.t-an-m:last-child{border-right:none}
+.t-an-m .av{font-size:18px;color:var(--amber);font-weight:bold}.t-an-m .al{font-size:8px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+.t-an-charts{display:grid;grid-template-columns:1fr 1fr;flex:1}
+.t-an-chart{border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:8px}
+.t-an-chart:nth-child(2n){border-right:none}
+.t-an-chart .ac-t{color:var(--dim);font-size:8px;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.t-chart-bars{display:flex;align-items:flex-end;gap:3px;height:80px}
+.t-chart-bar{flex:1;min-width:10px;position:relative}.t-chart-bar .bv{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:8px;color:var(--dim)}.t-chart-bar .bl{position:absolute;bottom:-12px;left:50%;transform:translateX(-50%);font-size:7px;color:var(--dark);white-space:nowrap}
+.t-risk-row{display:flex;align-items:center;gap:4px;margin-bottom:2px;font-size:9px}
+.t-risk-bar{height:10px;min-width:3px}
+.t-an-cta{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-top:1px solid var(--orange);background:var(--bg1);font-size:10px}
+.t-an-cta span{color:var(--dim)}.t-an-cta button{background:var(--orange);color:var(--black);padding:3px 10px;font-weight:bold;border:none;font-family:var(--mono);font-size:10px;cursor:pointer}
+
+/* Data table */
+.t-dtable{width:100%;border-collapse:collapse;font-size:10px}
+.t-dtable th{text-align:left;padding:2px 6px;color:var(--dim);font-size:9px;letter-spacing:1px;border-bottom:1px solid var(--border);background:var(--bg1);font-weight:normal;text-transform:uppercase;position:sticky;top:0}
+.t-dtable td{padding:2px 6px;border-bottom:1px solid #1a1a1a}
+.t-dtable tr:hover td{background:var(--bg2)}
+.t-d-orn{color:var(--orange)}.t-d-grn{color:var(--green)}.t-d-dim{color:var(--dim)}.t-d-cyn{color:var(--cyan)}.t-d-wht{color:var(--white);font-weight:bold}
+
+/* Responsive */
+@media(max-width:900px){
+  .hero h1{font-size:32px}
+  .compare-grid{grid-template-columns:1fr;gap:16px}
+  .compare-arrow{display:none}
+  .roles-grid{grid-template-columns:1fr}
+  .deal-showcase{grid-template-columns:1fr}
+  .trust-grid{grid-template-columns:repeat(2,1fr)}
+  .t-shell{grid-template-columns:1fr}
+  .t-sidebar{display:none}
+  .t-eng-top{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ NAVIGATION ═══ -->
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">X</div>
+    <div><div class="nav-name">Xata&Co</div><div class="nav-tag">Due Diligence Intelligence</div></div>
+  </div>
+  <div class="nav-links">
+    <a href="#compare">How It Works</a>
+    <a href="#roles">Solutions</a>
+    <a href="#deals">Sample Output</a>
+    <a href="#trust">Trust</a>
+    <a href="#" onclick="openTerminal();return false">Platform</a>
+  </div>
+  <div class="nav-cta">
+    <button class="btn-demo" onclick="document.getElementById('cta-section').scrollIntoView({behavior:'smooth'})">Request Demo</button>
+    <button class="btn-trial" onclick="openTerminal()">Start Free Trial</button>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-badge">Due Diligence in 12 Minutes, Not 3 Weeks</div>
+  <h1>IC-Ready Diligence <span>Backed by Evidence Graphs</span></h1>
+  <p class="hero-sub">One Deal Evidence Graph. Nine role-native interfaces. Every claim traced to its source. From bear case to full IC memo.</p>
+  <div class="hero-ctas">
+    <button class="btn-trial" onclick="openTerminal()">Start Free Trial</button>
+    <button class="btn-demo" onclick="document.getElementById('cta-section').scrollIntoView({behavior:'smooth'})">Take the Tour</button>
+  </div>
+  <div class="hero-proof">
+    <div class="hp-item"><span class="hp-val">5</span><span class="hp-lbl">Live DD Cases</span></div>
+    <div class="hp-item"><span class="hp-val">9</span><span class="hp-lbl">Role Interfaces</span></div>
+    <div class="hp-item"><span class="hp-val">11</span><span class="hp-lbl">Evidence Nodes</span></div>
+    <div class="hp-item"><span class="hp-val">12</span><span class="hp-lbl">DD Products</span></div>
+    <div class="hp-item"><span class="hp-val">0.997</span><span class="hp-lbl">Voting Signal Quality</span></div>
+  </div>
+</section>
+
+<!-- ═══ BEFORE / AFTER ═══ -->
+<section class="compare" id="compare">
+  <h2>3 Days of Manual Work. Or 12 Minutes.</h2>
+  <p class="sub">Same IC-ready quality. Every claim sourced. Every risk flagged.</p>
+  <div class="compare-grid">
+    <div class="compare-col old">
+      <h3>Manual DD Process</h3>
+      <div class="compare-row"><span class="ck">Time to IC memo</span><span class="cv">2-3 weeks</span></div>
+      <div class="compare-row"><span class="ck">Analyst hours</span><span class="cv">80-120 hours</span></div>
+      <div class="compare-row"><span class="ck">Source tracing</span><span class="cv">Manual / incomplete</span></div>
+      <div class="compare-row"><span class="ck">Bear case quality</span><span class="cv">Confirmation bias risk</span></div>
+      <div class="compare-row"><span class="ck">Evidence coverage</span><span class="cv">Varies by analyst</span></div>
+      <div class="compare-row"><span class="ck">Kill switch tracking</span><span class="cv">Often missing</span></div>
+      <div class="compare-row"><span class="ck">Dissent preservation</span><span class="cv">Lost after IC meeting</span></div>
+    </div>
+    <div class="compare-arrow">→</div>
+    <div class="compare-col new">
+      <h3>Xata&Co Evidence OS</h3>
+      <div class="compare-row"><span class="ck">Time to IC memo</span><span class="cv">12 minutes to 7 days</span></div>
+      <div class="compare-row"><span class="ck">Analyst hours</span><span class="cv">0 — automated</span></div>
+      <div class="compare-row"><span class="ck">Source tracing</span><span class="cv">Every claim → source</span></div>
+      <div class="compare-row"><span class="ck">Bear case quality</span><span class="cv">Adversarial by design</span></div>
+      <div class="compare-row"><span class="ck">Evidence coverage</span><span class="cv">11-node graph, 66-95%</span></div>
+      <div class="compare-row"><span class="ck">Kill switch tracking</span><span class="cv">Always visible</span></div>
+      <div class="compare-row"><span class="ck">Dissent preservation</span><span class="cv">Permanent record</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ ROLES ═══ -->
+<section class="roles-section" id="roles">
+  <h2>One Graph. Nine Interfaces.</h2>
+  <p class="sub">Every role sees the same evidence through their own lens.</p>
+  <div class="roles-grid" id="rolesGrid"></div>
+</section>
+
+<!-- ═══ SAMPLE OUTPUT ═══ -->
+<section class="deals-section" id="deals">
+  <div class="deals-inner">
+    <h2>See Real DD Output. No Signup Required.</h2>
+    <p class="sub">Browse live evidence graphs, claims, dissent, and kill switches for real companies.</p>
+    <div class="deal-showcase">
+      <div class="deal-terminal" id="dealTerminal"></div>
+      <div class="deal-sidebar" id="dealSidebar"></div>
+    </div>
+    <div style="text-align:center;margin-top:32px">
+      <button class="btn-trial" onclick="openTerminal()">Open Full Terminal →</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ TRUST ═══ -->
+<section class="trust-section" id="trust">
+  <h2>Built for Institutional Standards</h2>
+  <div class="trust-grid">
+    <div class="trust-item">
+      <div class="ti-icon">🔒</div>
+      <h4>Source Citations</h4>
+      <p>Every claim traced to original source. No circular references. No stale data.</p>
+    </div>
+    <div class="trust-item">
+      <div class="ti-icon">📊</div>
+      <h4>Evidence Graph</h4>
+      <p>11-node DAG with validated/unvalidated/refuted/watchlist states. Uncertainty is visible.</p>
+    </div>
+    <div class="trust-item">
+      <div class="ti-icon">⚖️</div>
+      <h4>Adversarial Bear Cases</h4>
+      <p>Every report includes three bear scenarios. Built to challenge, not confirm your thesis.</p>
+    </div>
+    <div class="trust-item">
+      <div class="ti-icon">📄</div>
+      <h4>IC-Ready Export</h4>
+      <p>PDF and DOCX export. Matches your existing IC package format. Drop into your workflow.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ FINAL CTA ═══ -->
+<section class="final-cta" id="cta-section">
+  <h2>Start with a free evidence graph.</h2>
+  <p>Public analytics on any deal. Free forever. Upgrade to full DD reports when you're ready.</p>
+  <button class="btn-trial" onclick="openTerminal()">Start Free Trial</button>
+  <div class="fc-sub">No credit card · Free analytics forever · Request demo for team pricing</div>
+</section>
+
+<!-- ═══ FOOTER ═══ -->
+<footer class="footer">
+  <span>Xata&Co · Due Diligence Intelligence Platform</span>
+  <span><a href="#">Terms</a> · <a href="#">Privacy</a> · <a href="#">Contact</a></span>
+</footer>
+
+<!-- ═══════════════════════════════════════
+     TERMINAL OVERLAY
+     ═══════════════════════════════════════ -->
+<div class="terminal-overlay" id="terminalOverlay">
+<div class="t-shell">
+  <div class="t-header">
+    <span class="t-hdr-brand">XATA&CO</span><span class="t-hdr-sep">|</span>
+    <span class="t-hdr-dim">DEAL EVIDENCE TERMINAL</span><span class="t-hdr-sep">|</span>
+    <span class="t-hdr-dim">CVG <span class="t-hdr-val" id="tmCov">66%</span></span>
+    <span class="t-hdr-dim">CONF <span class="t-hdr-val" id="tmConf">84%</span></span>
+    <span class="t-hdr-dim">VSQ <span class="t-hdr-grn">0.997</span></span>
+    <span class="t-hdr-dim">NODES <span class="t-hdr-val">11</span></span>
+    <span class="t-hdr-dim">GATE <span class="t-hdr-val" id="tmGate">G7</span></span>
+    <span class="t-hdr-right">
+      <span class="t-hdr-time" id="clock"></span>
+      <span class="t-hdr-close" onclick="closeTerminal()" title="Close terminal">✕ ESC</span>
+    </span>
+  </div>
+  <div class="t-fnbar">
+    <button class="t-fn active" data-tab="graph" onclick="showTab('graph')"><span class="fn-num">1</span> GRAPH</button>
+    <button class="t-fn" data-tab="workbench" onclick="showTab('workbench')"><span class="fn-num">2</span> WKBNCH</button>
+    <button class="t-fn" data-tab="signals" onclick="showTab('signals')"><span class="fn-num">3</span> SIGNALS</button>
+    <button class="t-fn" data-tab="engines" onclick="showTab('engines')"><span class="fn-num">4</span> ENGINES</button>
+    <button class="t-fn" data-tab="analytics" onclick="showTab('analytics')"><span class="fn-num">5</span> ANALYTICS</button>
+    <div class="t-fn-spacer"></div>
+    <div class="t-fn-deal"><span style="color:var(--dim)">DEAL</span><select id="dealSelect" onchange="switchDeal(this.value)"></select></div>
+  </div>
+  <aside class="t-sidebar"><div class="t-sb-hdr">ROLES <span>9</span></div><div id="roleList"></div></aside>
+  <div class="t-main">
+    <!-- GRAPH -->
+    <div class="t-panel active" id="panel-graph">
+      <div class="t-graph-wrap" id="graphContainer"><svg id="edgeSvg"></svg><div id="graphNodes"></div></div>
+      <div class="t-insp">
+        <div><div class="t-sec-hdr">CLAIMS <span class="sh-dim" id="claimCount"></span></div><div id="claimList"></div></div>
+        <div><div class="t-sec-hdr">DISSENT / KILL SWITCHES</div><div id="dissentList"></div></div>
+        <div><div class="t-sec-hdr">DEAL FACTS</div><div id="dealFacts"></div></div>
+      </div>
+      <div class="t-vq">
+        <div class="t-vq-item"><span class="vn">MEDIAN AGG</span> <span class="vv">0.9966</span></div>
+        <div class="t-vq-item"><span class="vn">EXPERT RTG</span> <span class="vv">0.9972</span></div>
+        <div class="t-vq-item"><span class="vn">CALIB BNTY</span> <span class="vv">0.9968</span></div>
+        <div class="t-vq-item" style="text-align:right"><span class="vn">VSQ</span> <span style="color:var(--orange);font-size:8px">TOURNAMENT VALIDATED</span></div>
+      </div>
+    </div>
+    <!-- WORKBENCH -->
+    <div class="t-panel" id="panel-workbench">
+      <div class="t-wb-top"><div class="t-wb-info"><h2 id="wbTitle"></h2><p id="wbJob"></p><div class="t-wb-chips" id="wbChips"></div></div><div class="t-wb-prod"><div class="wp-l">PRIMARY PRODUCT</div><div class="wp-n" id="wbProduct"></div><div class="wp-r" id="wbRank"></div></div></div>
+      <div class="t-wb-blocks" id="wbBlocks"></div>
+      <div class="t-wb-cta" id="wbCta"></div>
+    </div>
+    <!-- SIGNALS -->
+    <div class="t-panel" id="panel-signals">
+      <div class="t-sig-hdr"><span style="color:var(--orange)">SIGNAL FEED — <span id="sigDeal"></span></span><div class="t-sig-filters"><button class="t-sig-fb active" data-filter="all" onclick="filterSig('all')">ALL</button><button class="t-sig-fb" data-filter="demand" onclick="filterSig('demand')">DEMAND</button><button class="t-sig-fb" data-filter="ecosystem" onclick="filterSig('ecosystem')">ECO</button><button class="t-sig-fb" data-filter="referral" onclick="filterSig('referral')">REF</button><button class="t-sig-fb" data-filter="content" onclick="filterSig('content')">CTN</button><button class="t-sig-fb" data-filter="niche" onclick="filterSig('niche')">NICHE</button></div></div>
+      <div style="flex:1;overflow-y:auto" id="sigFeed"></div>
+    </div>
+    <!-- ENGINES -->
+    <div class="t-panel" id="panel-engines">
+      <div class="t-sec-hdr">TOP 5 EFFICIENCY MECHANISMS <span class="sh-dim">100-CYCLE TOURNAMENT | 25/30 PROMOTED</span></div>
+      <div class="t-eng-top" id="engGrid"></div>
+      <div class="t-sec-hdr">ALL PROMOTED <span class="sh-dim">SORTED BY LIFT</span></div>
+      <div style="flex:1;overflow-y:auto"><table class="t-dtable" id="mechTbl"></table></div>
+    </div>
+    <!-- ANALYTICS -->
+    <div class="t-panel" id="panel-analytics">
+      <div class="t-sec-hdr">FREE ANALYTICS — <span id="anDeal" style="color:var(--amber)"></span> <span class="sh-dim" style="margin-left:auto">FREE FOREVER</span></div>
+      <div class="t-an-metrics" id="anMetrics"></div>
+      <div class="t-an-charts">
+        <div class="t-an-chart"><div class="ac-t">COMPETITIVE POSITION</div><div class="t-chart-bars" id="compChart"></div></div>
+        <div class="t-an-chart"><div class="ac-t">SENTIMENT TREND</div><div class="t-chart-bars" id="sentChart"></div></div>
+        <div class="t-an-chart"><div class="ac-t">RISK HEATMAP</div><div id="riskMap"></div></div>
+        <div class="t-an-chart"><div class="ac-t">EVIDENCE COVERAGE</div><div class="t-chart-bars" id="covChart"></div></div>
+      </div>
+      <div class="t-an-cta"><span>FREE TIER SHOWS PUBLIC SIGNALS. DD REPORTS ADD PROPRIETARY RESEARCH + BEAR CASES.</span><button onclick="document.getElementById('cta-section').scrollIntoView();closeTerminal()">REQUEST DEMO &gt;&gt;</button></div>
+    </div>
+  </div>
+  <div class="t-status">
+    <span class="t-st-orn">XATA&CO TERMINAL v3.0</span>
+    <span>DEAL: <span class="t-st-orn" id="sbDeal"></span></span>
+    <span>ROLE: <span id="sbRole"></span></span>
+    <span>VERDICT: <span id="sbVerdict"></span></span>
+    <span class="t-st-right"><span class="t-st-grn">● CONNECTED</span><span>11 NODES</span><span id="sbDate"></span></span>
+  </div>
+</div>
+</div>
+
+<script>
+// ═══ DATA ═══
+const ROLES=[{role:"Analyst",iface:"Analyst Evidence Workbench",product:"Channel Economics Report",rank:10,job:"Audit source quality, economics assumptions, and provenance before the case reaches senior review.",focus:["source coverage","unit economics","provenance","unvalidated claims"],nodes:["evidence","channel","valuation","artifact"],blocks:[{t:"Source Provenance Audit",d:"Every claim traced to its original source. Red flags on circular references.",tag:"FREE"},{t:"Unit Economics Validator",d:"LTV/CAC/payback cross-check against industry benchmarks.",tag:"PAID"},{t:"Evidence Gap Detector",d:"Identifies which graph nodes have insufficient evidence coverage.",tag:"FREE"}]},{role:"VP/Sr Associate",iface:"Associate DD Workbench",product:"Customer Signal Intelligence",rank:11,job:"Turn fragmented customer and market signals into a clean diligence workplan.",focus:["customer pull","adoption friction","competitor signal","case deltas"],nodes:["customer","claim","risk","artifact"],blocks:[{t:"Customer Signal Dashboard",d:"Aggregated G2, Trustpilot, Reddit, LinkedIn signals.",tag:"FREE"},{t:"Competitive Heat Map",d:"Market share estimates and moat durability scoring.",tag:"PAID"},{t:"Diligence Workplan Generator",d:"Converts evidence gaps into prioritized research workplan.",tag:"PAID"}]},{role:"Principal",iface:"Principal Conviction Builder",product:"Customer Signal Intelligence",rank:11,job:"Build a conviction path with explicit uncertainty and escalation gates.",focus:["conviction path","refuted hypotheses","kill switches","decision gates"],nodes:["claim","customer","dissent","risk"],blocks:[{t:"Conviction Path Tracker",d:"Visual map from evidence through claims to recommendation.",tag:"FREE"},{t:"Hypothesis Scorecard",d:"10-hypothesis framework scored Proven/Disproven/Uncertain.",tag:"PAID"},{t:"Refutation Log",d:"Every refuted hypothesis preserved with killing evidence.",tag:"FREE"}]},{role:"Partner",iface:"Partner Decision Brief",product:"Strategic Acquirer Report",rank:1,job:"Convert evidence into a crisp recommendation, caveats, and management read.",focus:["recommendation","team risk","IC narrative","client-ready brief"],nodes:["management","dissent","valuation","artifact"],blocks:[{t:"Management DNA Profile",d:"Leadership assessment: track record, tenure signals, references.",tag:"PAID"},{t:"Decision Brief Generator",d:"Auto-generates 2-page partner brief from graph evidence.",tag:"PAID"},{t:"IC Narrative Builder",d:"Structures IC story arc: problem / evidence / conviction / ask.",tag:"PAID"}]},{role:"GP/MD",iface:"GP Portfolio Decision Console",product:"Strategic Acquirer Report",rank:1,job:"Compare this deal against portfolio exposure, manager thesis, and risk budget.",focus:["portfolio impact","team quality","downside control","follow-on logic"],nodes:["portfolio","management","risk","valuation"],blocks:[{t:"Portfolio Exposure Check",d:"Sector concentration, vintage diversification, risk budget.",tag:"FREE"},{t:"Manager Thesis Fit",d:"Does this deal align or stretch the fund thesis?",tag:"FREE"},{t:"Downside Scenario Console",d:"Three bear scenarios with P&L impact and exit stress test.",tag:"PAID"}]},{role:"IC Member",iface:"IC Pre-read and Dissent Board",product:"Pre-IC Full Package",rank:8,job:"Read the strongest arguments for and against the deal before voting.",focus:["dissent","vote blockers","unresolved questions","decision memo"],nodes:["dissent","claim","risk","artifact"],blocks:[{t:"Bull Case Summary",d:"Strongest argument for the deal from validated evidence only.",tag:"FREE"},{t:"Bear Case & Kill Switches",d:"Adversarial case: three scenarios that destroy the thesis.",tag:"PAID"},{t:"Dissent Board",d:"Unresolved questions tracked to resolution or escalation.",tag:"FREE"}]},{role:"LP/Family Office",iface:"LP Portfolio Lens",product:"LP Portfolio Deep Dive",rank:3,job:"Monitor how deal evidence changes manager quality and capital calls.",focus:["manager signal","portfolio drift","risk monitoring","annual review"],nodes:["portfolio","risk","management","evidence"],blocks:[{t:"Manager Health Dashboard",d:"Quarterly health signals for each GP relationship.",tag:"FREE"},{t:"Portfolio Drift Monitor",d:"Drift from target allocation: sector, vintage, geography.",tag:"FREE"},{t:"Independent Company Assessment",d:"Deep dive without relying on GP's quarterly letter.",tag:"PAID"}]},{role:"LP/Institutional",iface:"Institutional LP Risk Lens",product:"LP Co-Investment Screening",rank:6,job:"Screen co-investment exposure with policy-grade risk and scenario coverage.",focus:["co-investment risk","policy fit","scenario loss","committee evidence"],nodes:["portfolio","dissent","risk","valuation"],blocks:[{t:"Policy Compliance Checker",d:"Auto-flag investment policy violations.",tag:"FREE"},{t:"Co-Investment Risk Screen",d:"Concentration and correlation with existing PE/VC exposure.",tag:"PAID"},{t:"Committee Evidence Pack",d:"Summary, risk, scenario analysis for your committee.",tag:"PAID"}]},{role:"Angel",iface:"Angel Fast Check",product:"Bear Case Generator",rank:12,job:"Decide whether a deal deserves another cycle without drowning in artifacts.",focus:["fast yes/no","customer pain","valuation sanity","next question"],nodes:["customer","valuation","claim","risk"],blocks:[{t:"60-Second Deal Read",d:"One-page: market, team, traction, valuation. Green/yellow/red.",tag:"FREE"},{t:"Valuation Sanity Check",d:"Comparable deals, public comps, revenue multiples.",tag:"FREE"},{t:"Deep Dive Trigger",d:"Should you spend more time? What specifically to investigate.",tag:"FREE"}]}];
+
+const DEALS=[{id:"cursor",name:"Cursor",verdict:"PASS",vc:"pass",conf:"84%",score:"2.4/10",asking:"$50B pre-money",fair:"$20-26B base",claims:[{t:"Valuation inversion",b:"Asking price depends on AI coding TAM expansion faster than evidence supports.",s:"watchlist",src:"Xata&Co Bear Case Report, Section 4.2"},{t:"Customer signal strength",b:"Adoption is strong, but enterprise durability and procurement expansion remain under-validated.",s:"unvalidated",src:"G2 Reviews + Trustpilot aggregate, May 2026"},{t:"Bear case pressure",b:"At $50B the entry price absorbs too much future execution upside.",s:"validated",src:"DCF Model, Scenario C — Xata&Co Valuation Engine"}],dissent:["What evidence proves net retention survives tool commoditization?","What breaks if model providers bundle the workflow?"],kill:"No enterprise budget owner proof at scale.",an:{emp:"~800",arr:"$300M+",gr:"3x YoY",nps:"72",comp:[{n:"GH Copilot",s:45},{n:"Cursor",s:28},{n:"Windsurf",s:12},{n:"Replit",s:8},{n:"Other",s:7}],sent:[{m:"Jan",v:72},{m:"Feb",v:74},{m:"Mar",v:71},{m:"Apr",v:76},{m:"May",v:78}],risks:[{r:"Model dep.",s:8},{r:"Ent. proc.",s:6},{r:"Tool comm.",s:7},{r:"Price press.",s:5},{r:"Talent",s:4}],cov:[{d:"MKT",v:88},{d:"CUST",v:72},{d:"TECH",v:65},{d:"TEAM",v:48},{d:"FIN",v:55}]}},{id:"dydx",name:"dYdX",verdict:"PASS",vc:"pass",conf:"82%",score:"1.8/10",asking:"$120M mcap",fair:"$29M-$85M",claims:[{t:"Market repricing",b:"Token price exceeds risk-adjusted fair value range.",s:"validated",src:"On-chain analytics, token valuation model"},{t:"Protocol activity",b:"Usage quality and fee durability require verification.",s:"unvalidated",src:"Dune Analytics dashboards, Q1 2026"},{t:"Bull case containment",b:"Bull case does not overcome governance and liquidity risk.",s:"refuted",src:"Governance risk framework, Xata&Co"}],dissent:["Is governance risk priced too harshly?","What on-chain metric reverses the pass?"],kill:"Fee quality deteriorates for two periods.",an:{emp:"~120",arr:"Protocol fees",gr:"Declining",nps:"N/A",comp:[{n:"dYdX",s:18},{n:"GMX",s:22},{n:"Hyperl.",s:35},{n:"Vertex",s:12},{n:"Other",s:13}],sent:[{m:"Jan",v:45},{m:"Feb",v:42},{m:"Mar",v:38},{m:"Apr",v:35},{m:"May",v:33}],risks:[{r:"Gov. cntrl.",s:9},{r:"Vol. migr.",s:8},{r:"Token infl.",s:7},{r:"Regulatory",s:6},{r:"Tech obs.",s:5}],cov:[{d:"MKT",v:82},{d:"CUST",v:42},{d:"TECH",v:70},{d:"TEAM",v:38},{d:"FIN",v:60}]}},{id:"microsoft",name:"Microsoft",verdict:"CONDITIONAL",vc:"conditional",conf:"68%",score:"5.4/10",asking:"~$470",fair:"$510 base / $380-420 bear",claims:[{t:"AI monetization",b:"Base case depends on Azure/OpenAI translating into durable margins.",s:"unvalidated",src:"Azure revenue breakdown, FY25 10-K"},{t:"Downside contained",b:"Bear case visible but not catastrophic at current position.",s:"watchlist",src:"Competitive analysis, cloud segment"},{t:"Hypothesis mix",b:"5 confirmed, 4 uncertain, 1 refuted → conditional.",s:"validated",src:"Xata&Co hypothesis framework"}],dissent:["First indicator of AI margin disappointment?","Overpaying for option value?"],kill:"Azure AI growth decelerates without margin lift.",an:{emp:"228,000",arr:"$245B",gr:"+13% YoY",nps:"64",comp:[{n:"AWS",s:31},{n:"Azure",s:25},{n:"GCP",s:12},{n:"Other",s:32}],sent:[{m:"Jan",v:68},{m:"Feb",v:70},{m:"Mar",v:72},{m:"Apr",v:74},{m:"May",v:73}],risks:[{r:"AI capex",s:7},{r:"Antitrust",s:6},{r:"OpenAI dep.",s:8},{r:"Cloud comp.",s:5},{r:"Talent",s:4}],cov:[{d:"MKT",v:95},{d:"CUST",v:78},{d:"TECH",v:82},{d:"TEAM",v:60},{d:"FIN",v:92}]}},{id:"tbank",name:"T-Bank",verdict:"CONDITIONAL",vc:"conditional",conf:"62%",score:"4.2/10",asking:"457.9bn RUB",fair:"380-420bn RUB",claims:[{t:"Regulatory discount",b:"Sanctions and market access dominate segmentation.",s:"validated",src:"Sanctions compliance review, Q2 2026"},{t:"Management execution",b:"Execution quality positive but insufficient for all investors.",s:"validated",src:"Management assessment, Glassdoor + LinkedIn"},{t:"Investor-specific",b:"Western and local investors need separate decision paths.",s:"watchlist",src:"Investor segmentation model"}],dissent:["Is local-investor upside underweighted?","Can management offset macro risk?"],kill:"Capital mobility or governance worsens.",an:{emp:"~75,000",arr:"Banking NII",gr:"+28% NII",nps:"78",comp:[{n:"Sber",s:30},{n:"T-Bank",s:12},{n:"Alfa",s:8},{n:"VTB",s:18},{n:"Other",s:32}],sent:[{m:"Jan",v:76},{m:"Feb",v:78},{m:"Mar",v:75},{m:"Apr",v:80},{m:"May",v:82}],risks:[{r:"Sanctions",s:9},{r:"Capital ctrl",s:8},{r:"Reg. change",s:7},{r:"FX vol.",s:6},{r:"Competition",s:4}],cov:[{d:"MKT",v:80},{d:"CUST",v:75},{d:"TECH",v:68},{d:"TEAM",v:72},{d:"FIN",v:85}]}},{id:"bitcoin",name:"Bitcoin",verdict:"CONDITIONAL",vc:"conditional",conf:"68%",score:"5.8/10",asking:"Market entry",fair:"$90-100K base",claims:[{t:"Macro dependency",b:"Case depends on liquidity regime and risk appetite.",s:"watchlist",src:"Macro overlay model, Fed funds correlation"},{t:"Bear case materiality",b:"Downside path credible, must separate from adoption thesis.",s:"validated",src:"Bear scenario analysis, 3 paths modeled"},{t:"Evidence gap",b:"Fair value and buyer segmentation need stronger inputs.",s:"unvalidated",src:"Buyer segmentation framework gaps"}],dissent:["What price invalidates conditional view?","Which buyer segment is marginal validator?"],kill:"Liquidity regime flips before thesis confirmation.",an:{emp:"N/A",arr:"N/A",gr:"~$109K",nps:"N/A",comp:[{n:"BTC",s:58},{n:"ETH",s:14},{n:"SOL",s:4},{n:"Alt L1",s:12},{n:"Stables",s:12}],sent:[{m:"Jan",v:62},{m:"Feb",v:58},{m:"Mar",v:64},{m:"Apr",v:70},{m:"May",v:72}],risks:[{r:"Reg. crack.",s:6},{r:"Macro liq.",s:8},{r:"Risk corr.",s:7},{r:"Custody",s:4},{r:"Network",s:3}],cov:[{d:"MKT",v:90},{d:"CUST",v:35},{d:"TECH",v:78},{d:"TEAM",v:20},{d:"FIN",v:70}]}}];
+
+const GN=[{id:"deal",type:"DEAL",title:"DD Deal",x:5,y:6},{id:"artifact",type:"ARTIFACT",title:"Reports",x:38,y:3},{id:"evidence",type:"EVIDENCE",title:"Sources",x:5,y:40},{id:"claim",type:"CLAIM",title:"Hypotheses",x:28,y:37},{id:"customer",type:"SIGNAL",title:"Customer Intel",x:52,y:33},{id:"channel",type:"ECON",title:"Channel Econ",x:75,y:37},{id:"management",type:"TEAM",title:"Mgmt Assessment",x:16,y:74},{id:"valuation",type:"PRICE",title:"Valuation Gap",x:42,y:76},{id:"risk",type:"RISK",title:"Risk Register",x:64,y:74},{id:"dissent",type:"DISSENT",title:"IC Objections",x:78,y:6},{id:"portfolio",type:"PORTFOLIO",title:"LP/GP Exposure",x:85,y:74}];
+const GE=[["deal","artifact"],["deal","evidence"],["evidence","claim"],["claim","customer"],["customer","channel"],["claim","valuation"],["valuation","risk"],["management","risk"],["risk","dissent"],["risk","portfolio"],["artifact","dissent"]];
+
+const ENGINES=[{n:"Ecosystem Leverage",l:208,e:3.08,d:"DD output → LP/GP network referral loops."},{n:"Micro-Niche Finder",l:142,e:2.42,d:"Underserved buyer segments with zero competition."},{n:"Demand Signal Aggregator",l:128,e:2.28,d:"Public signals → deal-level demand indicators."},{n:"Content Leverage",l:96,e:1.96,d:"DD research → public content → inbound leads."},{n:"Referral Velocity",l:84,e:1.84,d:"Structured referral. Clients refer within 48h."}];
+const ALL_M=[{n:"Ecosystem Leverage",l:208,s:"ACTIVE"},{n:"Micro-Niche Finder",l:142,s:"ACTIVE"},{n:"Demand Signal Aggregator",l:128,s:"ACTIVE"},{n:"Content Leverage",l:96,s:"ACTIVE"},{n:"Referral Velocity",l:84,s:"ACTIVE"},{n:"Network Effect Amplifier",l:78,s:"PROMOTED"},{n:"Pricing Optimizer",l:72,s:"PROMOTED"},{n:"Retention Loop",l:68,s:"PROMOTED"},{n:"Cross-Sell Engine",l:64,s:"PROMOTED"},{n:"Onboarding Accelerator",l:58,s:"PROMOTED"},{n:"Quality Flywheel",l:55,s:"PROMOTED"},{n:"Trust Signal Builder",l:52,s:"PROMOTED"},{n:"Market Timing Detector",l:48,s:"PROMOTED"},{n:"Urgency Trigger",l:45,s:"PROMOTED"},{n:"Competitor Intelligence",l:42,s:"PROMOTED"},{n:"Product Bundler",l:40,s:"PROMOTED"},{n:"Deal Flow Predictor",l:38,s:"PROMOTED"},{n:"Segment Expansion",l:35,s:"PROMOTED"},{n:"Upsell Path Optimizer",l:32,s:"PROMOTED"},{n:"Social Proof Engine",l:30,s:"PROMOTED"},{n:"Event Trigger System",l:28,s:"PROMOTED"},{n:"Pipeline Velocity",l:25,s:"PROMOTED"},{n:"Win Rate Optimizer",l:22,s:"PROMOTED"},{n:"Churn Predictor",l:20,s:"PROMOTED"},{n:"Reactivation Engine",l:18,s:"PROMOTED"}];
+
+function genSig(d){const T={demand:[`${d.name} funding round coverage — 3 new analyst requests`,`Search volume "${d.name} DD" +140%`,`Two PE firms requested ${d.name} bear case in 24h`],ecosystem:[`LP shared ${d.name} analysis with 4 partners`,`IC member referenced Xata&Co in committee`],referral:[`Client referred 2 funds after ${d.name} bear case`,`Family office requested full package`],content:[`${d.name} risk framework → 8 inbound leads`,`Bear case preview → 6% conv to reports`],niche:[`Underserved segment: ${d.name}-adjacent, zero coverage`,`8 specialist funds, ${d.name} exposure, no DD`]};const s=[];const k=Object.keys(T);const tm=[2,5,11,18,27,38,45,62,78,95,120,180];for(let i=0;i<12;i++){const t=k[i%k.length];s.push({type:t,msg:T[t][i%T[t].length],time:tm[i],str:Math.max(1,5-Math.floor(i/3))});}return s;}
+
+let cR=ROLES[0],cD=DEALS[0],cS=genSig(DEALS[0]),sF='all';
+
+// ═══ LANDING PAGE RENDERS ═══
+function renderLanding(){
+  // Roles grid
+  document.getElementById('rolesGrid').innerHTML=ROLES.map(r=>`<div class="role-card"><h3>${r.role}</h3><div class="rc-iface">${r.iface}</div><p>${r.job}</p><div class="rc-nodes">${r.nodes.map(n=>`<span class="rc-node">${n}</span>`).join('')}</div></div>`).join('');
+  // Deal sidebar
+  document.getElementById('dealSidebar').innerHTML=DEALS.map((d,i)=>`<div class="deal-card ${i===0?'active':''}" onclick="selectShowcase(${i})"><h4>${d.name}</h4><div class="dc-verdict dp-${d.vc}">${d.verdict} · ${d.conf} confidence</div><div class="dc-meta">${d.asking} · Score ${d.score}</div></div>`).join('');
+  renderShowcase(0);
+}
+function renderShowcase(i){
+  const d=DEALS[i];
+  document.querySelectorAll('.deal-card').forEach((c,j)=>c.classList.toggle('active',j===i));
+  document.getElementById('dealTerminal').innerHTML=`<div class="dt-header"><span>XATA&CO TERMINAL — ${d.name.toUpperCase()}</span><span>${d.conf} CONF</span></div><div class="dt-body"><div class="dt-row"><span class="dt-k">VERDICT</span><span class="dt-v dp-${d.vc}">${d.verdict}</span></div><div class="dt-row"><span class="dt-k">SCORE</span><span class="dt-v dt-orn">${d.score}</span></div><div class="dt-row"><span class="dt-k">ASKING</span><span class="dt-v">${d.asking}</span></div><div class="dt-row"><span class="dt-k">FAIR VALUE</span><span class="dt-v dt-orn">${d.fair}</span></div><div class="dt-claims">${d.claims.map(c=>`<div class="dt-claim"><span class="dc-title">${c.t}</span><span class="dc-state st-${c.s}">[${c.s.toUpperCase()}]</span><div class="dc-body">${c.b}</div><span class="dc-src">↳ ${c.src}</span></div>`).join('')}</div><div style="margin-top:8px;padding-top:8px;border-top:1px solid #333"><div style="color:#cc0000;font-size:10px">KILL SWITCH: ${d.kill}</div></div></div>`;
+}
+function selectShowcase(i){renderShowcase(i);}
+
+// ═══ TERMINAL ═══
+function openTerminal(){document.getElementById('terminalOverlay').classList.add('active');document.body.style.overflow='hidden';initTerminal();}
+function closeTerminal(){document.getElementById('terminalOverlay').classList.remove('active');document.body.style.overflow='';}
+
+let termInit=false;
+function initTerminal(){
+  if(termInit)return;termInit=true;
+  const sel=document.getElementById('dealSelect');DEALS.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.name.toUpperCase();sel.appendChild(o);});
+  const list=document.getElementById('roleList');ROLES.forEach((r,i)=>{const b=document.createElement('button');b.className='t-role'+(i===0?' active':'');b.dataset.idx=i;b.innerHTML=`<span class="tr-name">${r.role}</span><span class="tr-iface">${r.iface}</span>`;b.onclick=()=>{cR=r;tUpdate();};list.appendChild(b);});
+  document.getElementById('graphNodes').innerHTML=GN.map(n=>`<div class="gnode" data-id="${n.id}" style="left:${n.x}%;top:${n.y}%"><div class="gn-type">${n.type}</div><div class="gn-title">${n.title}</div><div class="gn-state" id="ns-${n.id}"></div><div class="gn-vsq" id="nq-${n.id}"></div></div>`).join('');
+  document.getElementById('engGrid').innerHTML=ENGINES.map((e,i)=>`<div class="t-eng-card"><span class="ec-rank">#${i+1}</span><div class="ec-name">${e.n}</div><div class="ec-desc">${e.d}</div><div class="ec-stats"><div><div class="ev" style="color:var(--green)">+${e.l}%</div><div class="el">LIFT</div></div><div><div class="ev" style="color:var(--amber)">${e.e.toFixed(2)}x</div><div class="el">MULT</div></div></div><div class="t-eng-bar"><div class="t-eng-bar-fill" style="width:${e.e/3.08*100}%;background:${i<3?'var(--orange)':'var(--green)'}"></div></div></div>`).join('');
+  document.getElementById('mechTbl').innerHTML=`<thead><tr><th>#</th><th>MECHANISM</th><th>LIFT</th><th>STATUS</th></tr></thead><tbody>${ALL_M.map((m,i)=>`<tr><td class="t-d-orn">${i+1}</td><td>${m.n}</td><td class="t-d-grn">+${m.l}%</td><td class="${m.s==='ACTIVE'?'t-d-grn':'t-d-dim'}">${m.s}</td></tr>`).join('')}</tbody>`;
+  tUpdate();
+}
+
+function switchDeal(id){cD=DEALS.find(d=>d.id===id)||DEALS[0];cS=genSig(cD);tUpdate();}
+function showTab(n){document.querySelectorAll('.t-fn').forEach(k=>k.classList.toggle('active',k.dataset.tab===n));document.querySelectorAll('.t-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+n));}
+function filterSig(t){sF=t;document.querySelectorAll('.t-sig-fb').forEach(b=>b.classList.toggle('active',b.dataset.filter===t));renderSig();}
+
+function renderEdges(){const svg=document.getElementById('edgeSvg'),c=document.getElementById('graphContainer'),r=c.getBoundingClientRect(),w=r.width||900,h=r.height||350;svg.setAttribute('viewBox',`0 0 ${w} ${h}`);svg.innerHTML=GE.map(([f,t])=>{const fn=GN.find(n=>n.id===f),tn=GN.find(n=>n.id===t);return `<line x1="${fn.x/100*w+50}" y1="${fn.y/100*h+18}" x2="${tn.x/100*w+50}" y2="${tn.y/100*h+18}" class="${cR.nodes.includes(f)&&cR.nodes.includes(t)?'active':''}"/>`}).join('');}
+
+function renderSig(){
+  const f=sF==='all'?cS:cS.filter(s=>s.type===sF);
+  document.getElementById('sigDeal').textContent=cD.name.toUpperCase();
+  document.getElementById('sigFeed').innerHTML=f.map(s=>`<div class="t-sig-row"><span class="sr-${s.type}" style="font-size:9px;letter-spacing:1px">${s.type.toUpperCase()}</span><span style="color:var(--white)">${s.msg}</span><span style="color:var(--dim);text-align:right;font-size:9px">${s.time<60?s.time+'m':Math.floor(s.time/60)+'h'} ago</span><span class="sr-str">${Array(5).fill(0).map((_,i)=>`<span class="sd ${i<s.str?'on':''}"></span>`).join('')}</span></div>`).join('');
+}
+
+function tUpdate(){
+  document.getElementById('tmConf').textContent=cD.conf;
+  const cov=cD.an?Math.round(cD.an.cov.reduce((s,c)=>s+c.v,0)/cD.an.cov.length)+'%':'92%';
+  document.getElementById('tmCov').textContent=cov;
+  document.getElementById('tmGate').textContent=cR.role.includes('LP')?'G8':'G7';
+  document.getElementById('sbDeal').textContent=cD.name.toUpperCase();
+  document.getElementById('sbRole').textContent=cR.role.toUpperCase();
+  const ve=document.getElementById('sbVerdict');ve.textContent=cD.verdict;ve.className='dp-'+cD.vc;
+
+  document.querySelectorAll('.t-role[data-idx]').forEach(b=>b.classList.toggle('active',ROLES[b.dataset.idx]===cR));
+
+  // Graph
+  document.querySelectorAll('.gnode').forEach(n=>{const id=n.dataset.id;n.classList.toggle('focus',cR.nodes.includes(id));const cl=cD.claims.find(c=>{if(id==='valuation')return c.t.toLowerCase().includes('valuation')||c.t.toLowerCase().includes('market');if(id==='customer')return c.t.toLowerCase().includes('customer')||c.t.toLowerCase().includes('signal');if(id==='risk')return c.t.toLowerCase().includes('bear')||c.t.toLowerCase().includes('risk')||c.t.toLowerCase().includes('downside');if(id==='management')return c.t.toLowerCase().includes('management');if(id==='dissent')return c.t.toLowerCase().includes('bull')||c.t.toLowerCase().includes('hypothesis');return false;});const se=document.getElementById('ns-'+id),qe=document.getElementById('nq-'+id);if(cl){se.textContent=cl.s.toUpperCase();se.className='gn-state st-'+cl.s;}else{se.textContent='WATCHLIST';se.className='gn-state st-watchlist';}qe.textContent=cR.nodes.includes(id)?'VSQ 0.997':'';});
+  renderEdges();
+
+  // Claims with source citations
+  document.getElementById('claimCount').textContent=cD.claims.length+' claims';
+  document.getElementById('claimList').innerHTML=cD.claims.map(c=>`<div class="t-insp-row"><div class="ir-title">${c.t} <span class="st-${c.s}">[${c.s.toUpperCase()}]</span></div><div class="ir-body">${c.b}</div><div class="ir-src">↳ ${c.src}</div></div>`).join('');
+
+  document.getElementById('dissentList').innerHTML=cD.dissent.map(d=>`<div class="dissent-r">${d}</div>`).join('')+`<div class="dissent-r kill">KILL: ${cD.kill}</div>`;
+  document.getElementById('dealFacts').innerHTML=`<div class="fact-r"><span class="fk">VERDICT</span><span class="fv dp-${cD.vc}">${cD.verdict}</span></div><div class="fact-r"><span class="fk">SCORE</span><span class="fv">${cD.score}</span></div><div class="fact-r"><span class="fk">ASKING</span><span class="fv">${cD.asking}</span></div><div class="fact-r"><span class="fk">FAIR VALUE</span><span class="fv">${cD.fair}</span></div><div class="fact-r"><span class="fk">CONFIDENCE</span><span class="fv">${cD.conf}</span></div>`;
+
+  // Workbench
+  document.getElementById('wbTitle').textContent=cR.iface.toUpperCase();
+  document.getElementById('wbJob').textContent=cR.job;
+  document.getElementById('wbProduct').textContent=cR.product;
+  document.getElementById('wbRank').textContent=`Tournament #${cR.rank}`;
+  document.getElementById('wbChips').innerHTML=cR.focus.map((f,i)=>`<span class="t-wb-chip ${i===0?'pri':''}">${f}</span>`).join('');
+  document.getElementById('wbBlocks').innerHTML=cR.blocks.map(b=>`<div class="t-wb-block"><h3>${b.t}</h3><p>${b.d}</p>${b.tag==='FREE'?'<span class="tag-free">FREE</span>':'<span class="tag-paid">IN DD REPORT</span>'}</div>`).join('');
+  document.getElementById('wbCta').innerHTML=`<div><div class="wc-text">GET FULL ${cR.product.toUpperCase()}</div><div class="wc-sub">Proprietary research + management assessment + IC-ready deliverables</div></div><div style="text-align:right"><button class="t-wb-cta-btn">REQUEST DEMO &gt;&gt;</button></div>`;
+
+  renderSig();
+
+  // Analytics
+  if(cD.an){const a=cD.an;
+    document.getElementById('anDeal').textContent=cD.name.toUpperCase();
+    document.getElementById('anMetrics').innerHTML=`<div class="t-an-m"><div class="av">${a.emp}</div><div class="al">EMPLOYEES</div></div><div class="t-an-m"><div class="av">${a.arr}</div><div class="al">REVENUE</div></div><div class="t-an-m"><div class="av">${a.gr}</div><div class="al">GROWTH</div></div><div class="t-an-m"><div class="av">${a.nps}</div><div class="al">NPS</div></div>`;
+    document.getElementById('compChart').innerHTML=a.comp.map(c=>`<div class="t-chart-bar" style="height:${c.s*2}px;background:${c.n.includes(cD.name.substring(0,3))?'var(--orange)':'var(--dark)'}"><span class="bv">${c.s}%</span><span class="bl">${c.n}</span></div>`).join('');
+    document.getElementById('sentChart').innerHTML=a.sent.map(s=>`<div class="t-chart-bar" style="height:${s.v*1.3}px;background:${s.v>65?'var(--green)':s.v>50?'var(--yellow)':'var(--red)'}"><span class="bv">${s.v}</span><span class="bl">${s.m}</span></div>`).join('');
+    document.getElementById('riskMap').innerHTML=a.risks.map(r=>`<div class="t-risk-row"><div class="t-risk-bar" style="width:${r.s*10}%;background:${r.s>=7?'var(--red)':r.s>=5?'var(--yellow)':'var(--green)'}"></div><span style="color:var(--dim)">${r.r} ${r.s}/10</span></div>`).join('');
+    document.getElementById('covChart').innerHTML=a.cov.map(c=>`<div class="t-chart-bar" style="height:${c.v}px;background:${c.v>=75?'var(--green)':c.v>=50?'var(--blue)':'var(--red)'}"><span class="bv">${c.v}%</span><span class="bl">${c.d}</span></div>`).join('');
+  }
+}
+
+// Clock
+function tick(){const d=new Date();const el=document.getElementById('clock');if(el)el.textContent=d.toTimeString().slice(0,8);const el2=document.getElementById('sbDate');if(el2)el2.textContent=d.toISOString().slice(0,10);}
+setInterval(tick,1000);tick();
+
+// Keyboard shortcuts (terminal only)
+document.addEventListener('keydown',e=>{if(!document.getElementById('terminalOverlay').classList.contains('active'))return;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;if(e.key==='Escape'){closeTerminal();return;}const n=parseInt(e.key);if(n>=1&&n<=5){e.preventDefault();showTab(['graph','workbench','signals','engines','analytics'][n-1]);}});
+
+window.addEventListener('resize',()=>{if(termInit)renderEdges();});
+
+// Init landing
+renderLanding();
+</script>
+</body>
+</html>

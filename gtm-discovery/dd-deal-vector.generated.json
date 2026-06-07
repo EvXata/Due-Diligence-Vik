@@ -1,0 +1,181 @@
+[
+  {
+    "deal_id": "bitcoin-19.05.2026",
+    "source_dir": "research/bitcoin-19.05.2026",
+    "ordered_products": [
+      "bear_case",
+      "deep_audit"
+    ],
+    "bear_case": true,
+    "bull_case": false,
+    "deep_audit": true,
+    "fast_short": false,
+    "deal_type": "",
+    "asking_price": "",
+    "verdict": "CONDITIONAL",
+    "confidence": "68% (moderate conviction)",
+    "deal_score": "5.8 / 10",
+    "fair_value": "",
+    "hypothesis_score": "",
+    "tournament_eligible": true
+  },
+  {
+    "deal_id": "cursor-19.05.2026",
+    "source_dir": "research/cursor-19.05.2026",
+    "ordered_products": [
+      "bear_case",
+      "deep_audit"
+    ],
+    "bear_case": true,
+    "bull_case": false,
+    "deep_audit": true,
+    "fast_short": false,
+    "deal_type": "Series E funding round (Strategic DD)",
+    "asking_price": "$50B pre-money (REVISED from initial $30B assumption — actual market data: Cursor in talks for $2B raise from a16z + Thrive at $50B pre-money as of April 2026 per The Information / TechCrunch / CNBC)",
+    "verdict": "PASS @ $50B / CONDITIONAL @ $32-35B / PROCEED only below $25B",
+    "confidence": "84% (high conviction)",
+    "deal_score": "2.4/10",
+    "fair_value": "$20-26B (base) / $30-35B (optimistic) / $12-16B (conservative)",
+    "hypothesis_score": "0 confirmed / 6 uncertain / 4 REFUTED",
+    "tournament_eligible": true
+  },
+  {
+    "deal_id": "dydx-19.05.2026",
+    "source_dir": "research/dydx-19.05.2026",
+    "ordered_products": [
+      "bear_case",
+      "bull_case",
+      "deep_audit"
+    ],
+    "bear_case": true,
+    "bull_case": true,
+    "deep_audit": true,
+    "fast_short": false,
+    "deal_type": "Secondary / token buy at market",
+    "asking_price": "$120M MCap ($0.14/token)",
+    "verdict": "PASS",
+    "confidence": "82% (high conviction)",
+    "deal_score": "1.8 / 10",
+    "fair_value": "$29M — $85M MCap ($0.035 — $0.101/token)",
+    "hypothesis_score": "1 confirmed / 5 uncertain / 4 refuted",
+    "tournament_eligible": true
+  },
+  {
+    "deal_id": "microsoft-20.05.2026",
+    "source_dir": "research/microsoft-20.05.2026",
+    "ordered_products": [
+      "bear_case",
+      "deep_audit"
+    ],
+    "bear_case": true,
+    "bull_case": false,
+    "deep_audit": true,
+    "fast_short": false,
+    "deal_type": "not specified (treated as strategic / long-position DD)",
+    "asking_price": "not specified (current market cap ~$3.5T reference)",
+    "verdict": "CONDITIONAL LONG (entry ≤$380)",
+    "confidence": "62% (low conviction — flagged explicitly)",
+    "deal_score": "5.2 / 10",
+    "fair_value": "$360–398 (probability-weighted)",
+    "hypothesis_score": "0 confirmed / 8 uncertain / 2 refuted (H-T1, H-K1)",
+    "tournament_eligible": true
+  },
+  {
+    "deal_id": "microsoft-21.05.2026",
+    "source_dir": "research/microsoft-21.05.2026",
+    "ordered_products": [
+      "bear_case",
+      "deep_audit"
+    ],
+    "bear_case": true,
+    "bull_case": false,
+    "deep_audit": true,
+    "fast_short": false,
+    "deal_type": "secondary (default — large-cap public equity DD)",
+    "asking_price": "not specified (use current market cap as proxy)",
+    "verdict": "CONDITIONAL",
+    "confidence": "68% (moderate conviction)",
+    "deal_score": "5.4 / 10",
+    "fair_value": "$510 base / $380-420 bear / $310-340 deep bear (vs. $470 asking)",
+    "hypothesis_score": "5 confirmed / 4 uncertain / 1 refuted (H-K1)",
+    "tournament_eligible": true
+  },
+  {
+    "deal_id": "microsoft-21.05.2026-fast",
+    "source_dir": "research/microsoft-21.05.2026-fast",
+    "ordered_products": [
+      "fast_short"
+    ],
+    "bear_case": false,
+    "bull_case": false,
+    "deep_audit": false,
+    "fast_short": true,
+    "deal_type": "not specified",
+    "asking_price": "not specified",
+    "verdict": "CONDITIONAL",
+    "confidence": "72%",
+    "deal_score": "6.8 / 10",
+    "fair_value": "$2.7T — $3.5T (base: $3.1T)",
+    "hypothesis_score": "",
+    "tournament_eligible": true
+  },
+  {
+    "deal_id": "nvidia-20.05.2026",
+    "source_dir": "research/nvidia-20.05.2026",
+    "ordered_products": [],
+    "bear_case": false,
+    "bull_case": false,
+    "deep_audit": false,
+    "fast_short": false,
+    "deal_type": "not specified (treated as strategic / long-position DD)",
+    "asking_price": "not specified (current market cap ~$3.0T reference)",
+    "verdict": "PARTIAL_PIPELINE",
+    "confidence": "",
+    "deal_score": "",
+    "fair_value": "",
+    "hypothesis_score": "",
+    "tournament_eligible": false
+  },
+  {
+    "deal_id": "tbank-24.05.2026",
+    "source_dir": "research/tbank-24.05.2026",
+    "ordered_products": [
+      "bear_case",
+      "bull_case",
+      "deep_audit"
+    ],
+    "bear_case": true,
+    "bull_case": true,
+    "deep_audit": true,
+    "fast_short": false,
+    "deal_type": "Generic / no specific deal context",
+    "asking_price": "Current market cap on MOEX (to be discovered in pre-flight)",
+    "verdict": "PASS (at asking 457.9bn) | CONDITIONAL (380-450bn + protections) | PROCEED (<380bn)",
+    "confidence": "62% (low conviction)",
+    "deal_score": "4.2 / 10",
+    "fair_value": "380-420bn RUB (base) | 300-400bn (bear) | 550-650bn (red team base) | 700-800bn (bull)",
+    "hypothesis_score": "1 confirmed / 5 uncertain / 4 refuted → Rule 14 triggered (auto-PASS at base)",
+    "tournament_eligible": true
+  },
+  {
+    "deal_id": "tinkoff-bank-22.05.2026",
+    "source_dir": "research/tinkoff-bank-22.05.2026",
+    "ordered_products": [
+      "bear_case",
+      "bull_case",
+      "deep_audit"
+    ],
+    "bear_case": true,
+    "bull_case": true,
+    "deep_audit": true,
+    "fast_short": false,
+    "deal_type": "",
+    "asking_price": "",
+    "verdict": "УСЛОВНЫЙ (для рос. инвестора) / АБСОЛЮТНЫЙ ПРОПУСК (для западного инвестора)",
+    "confidence": "67% (умеренная убеждённость)",
+    "deal_score": "5,8 / 10",
+    "fair_value": "",
+    "hypothesis_score": "",
+    "tournament_eligible": true
+  }
+]
